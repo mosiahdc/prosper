@@ -6,17 +6,24 @@
 function getDayData(year, month, day, isLive) {
     let net = 0;
     let items = [];
-    // Standardize to YYYY-MM-DD for comparison
     const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
     transactions.forEach(t => {
         const tParts = t.date.split('-');
-        // Force time to midnight to avoid Daylight Savings offset errors
         const tDateObj = new Date(parseInt(tParts[0]), parseInt(tParts[1]) - 1, parseInt(tParts[2]));
         tDateObj.setHours(0, 0, 0, 0);
 
         const currentObj = new Date(year, month, day);
         currentObj.setHours(0, 0, 0, 0);
+
+        // --- NEW END DATE LOGIC ---
+        if (t.endDate) {
+            const endParts = t.endDate.split('-');
+            const endDateObj = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]));
+            endDateObj.setHours(23, 59, 59, 999);
+            if (currentObj > endDateObj) return; // Skip if we are past the end date
+        }
+        // --- END OF NEW LOGIC ---
 
         let match = false;
         if (t.frequency === 'none' && t.date === dateKey) {

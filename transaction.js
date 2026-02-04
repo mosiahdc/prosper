@@ -15,13 +15,20 @@ function renderTransactions() {
     const container = document.getElementById('transactionList');
     const searchTerm = document.getElementById('transSearch').value.toLowerCase();
 
-    // 1. Filter by Active/Completed status
+    // 1. Updated Filter Logic
     let filtered = transactions.filter(t => {
+        // A transaction is "Past/Completed" if:
+        // - It's One-time (none) and the date is before today
+        // - OR it has an End Date and that end date is before today
         const isOneTimePast = (t.frequency === 'none' && t.date < todayStr);
-        return transFilter === 'active' ? !isOneTimePast : isOneTimePast;
+        const isExpired = (t.endDate && t.endDate < todayStr);
+
+        const isFinished = isOneTimePast || isExpired;
+
+        return transFilter === 'active' ? !isFinished : isFinished;
     });
 
-    // 2. Filter by Search Term
+    // 2. Filter by Search Term (Keep existing logic)
     if (searchTerm) {
         filtered = filtered.filter(t =>
             t.name.toLowerCase().includes(searchTerm) ||
@@ -62,6 +69,7 @@ function editTrans(id) {
     document.getElementById('tType').value = t.type;
     document.getElementById('tFreq').value = t.frequency;
     document.getElementById('tDate').value = t.date;
+    document.getElementById('tEndDate').value = t.endDate || ''; // Load the end date
     openTransModal("Edit Transaction");
 }
 
@@ -102,7 +110,8 @@ document.getElementById('transForm').onsubmit = (e) => {
         amount: parseFloat(document.getElementById('tAmount').value),
         type: document.getElementById('tType').value,
         frequency: document.getElementById('tFreq').value,
-        date: document.getElementById('tDate').value
+        date: document.getElementById('tDate').value,
+        endDate: document.getElementById('tEndDate').value // Save the end date
     };
 
     if (id) {
