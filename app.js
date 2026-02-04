@@ -6,16 +6,20 @@ let transactions = JSON.parse(localStorage.getItem('moneyData')) || [];
 let fulfilledMap = JSON.parse(localStorage.getItem('fulfilledData')) || {};
 let currentViewDate = new Date(); currentViewDate.setDate(1);
 
-function showPage(pageId) {
-    // Hide all pages
+function showPage(id) {
     document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-    // Show selected page
-    document.getElementById(pageId).classList.remove('hidden');
+    const target = document.getElementById(id);
+    if (target) target.classList.remove('hidden');
 
-    // Refresh UI whenever we switch pages to ensure calendar renders
-    if (pageId === 'dashboard' || pageId === 'review') {
-        refreshUI();
-    }
+    // Update Nav Buttons
+    document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`btn-${id}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Trigger page-specific refreshes
+    if (id === 'input') renderTransactions();
+    if (id === 'dashboard' || id === 'review') refreshUI();
+    if (id === 'vault') renderVaults();
 }
 
 function saveData() {
