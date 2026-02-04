@@ -288,11 +288,41 @@ select {
     display: flex;
     flex-direction: column;
     line-height: 1.2;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .summary-badge small {
     font-size: 0.6rem;
     color: var(--text-muted);
     letter-spacing: 0.5px;
+}
+
+
+.status-pill {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: none;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+    min-width: 90px;
+}
+
+.status-pending {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.status-pending:hover {
+    background: #cbd5e1;
+}
+
+.status-paid {
+    background: var(--success);
+    color: white;
+}
+
+.status-paid:hover {
+    opacity: 0.9;
 }

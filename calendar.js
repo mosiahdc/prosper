@@ -131,18 +131,34 @@ function jumpToToday() {
 function openDayModal(dateKey, isLive) {
     const todayStr = new Date().toISOString().split('T')[0];
     const parts = dateKey.split('-');
-    // Always fetch all items (isLive=false) for the modal list so user can see/toggle them
+
+    // FIX: We fetch items. We pass 'false' to getDayData so we see ALL items 
+    // regardless of whether they are paid, but we use the 'isLive' parameter 
+    // passed into openDayModal to decide if we show the toggle button.
     const { items } = getDayData(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), false);
 
     const titlePrefix = (dateKey === todayStr) ? "⭐ Today - " : "";
     document.getElementById('dayModalDate').innerText = titlePrefix + dateKey;
 
-    document.getElementById('dayItemList').innerHTML = items.map(it => `
-        <div class="day-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
-            <div><strong>${it.name}</strong><br><small>$${it.amount.toLocaleString()}</small></div>
-            ${isLive ? `<button class="status-pill ${it.isPaid ? 'status-paid' : 'status-pending'}" onclick="toggleFulfill('${dateKey}',${it.id})">${it.isPaid ? 'PAID' : 'MARK PAID'}</button>` : ''}
-        </div>
-    `).join('') || '<p style="text-align:center; color:var(--text-muted); padding:20px;">No transactions for this day.</p>';
+    document.getElementById('dayItemList').innerHTML = items.map(it => {
+        // Determine button text and class based on paid status
+        const statusText = it.isPaid ? 'PAID' : 'MARK PAID';
+        const statusClass = it.isPaid ? 'status-paid' : 'status-pending';
+
+        return `
+            <div class="day-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
+                <div>
+                    <strong style="${it.isPaid ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${it.name}</strong>
+                    <br><small>$${it.amount.toLocaleString()}</small>
+                </div>
+                ${isLive ? `
+                    <button class="status-pill ${statusClass}" 
+                            onclick="toggleFulfill('${dateKey}', ${it.id})">
+                        ${statusText}
+                    </button>` : ''}
+            </div>
+        `;
+    }).join('') || '<p style="text-align:center; color:var(--text-muted); padding:20px;">No transactions for this day.</p>';
 
     document.getElementById('dayModal').classList.add('active');
 }
