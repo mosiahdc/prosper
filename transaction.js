@@ -50,7 +50,7 @@ function renderTransactions() {
                 <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">${t.type}</div>
             </td>
             <td style="font-weight: 800; color: ${t.type === 'income' ? 'var(--success)' : 'var(--text-main)'}">
-                $${t.amount.toLocaleString()}
+                ₱${t.amount.toLocaleString()}
             </td>
             <td class="col-freq">${t.frequency.charAt(0).toUpperCase() + t.frequency.slice(1)}</td>
             <td style="font-size: 0.85rem;">

@@ -9,12 +9,12 @@ function renderVaults() {
     if (!container) return;
 
     const total = vaults.reduce((sum, v) => sum + v.balance, 0);
-    totalDisplay.innerText = `$${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    totalDisplay.innerText = `₱${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
     container.innerHTML = vaults.map(v => `
         <div class="card" style="padding: 1.5rem; position: relative;">
             <div style="color: var(--text-muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">${v.name}</div>
-            <div style="font-size: 1.75rem; font-weight: 800; margin: 10px 0;">$${v.balance.toLocaleString()}</div>
+            <div style="font-size: 1.75rem; font-weight: 800; margin: 10px 0;">₱${v.balance.toLocaleString()}</div>
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button class="btn-ghost" style="flex: 1;" onclick="editVault(${v.id})">Edit</button>
                 <button class="btn-ghost" style="color: var(--danger);" onclick="deleteVault(${v.id})">✕</button>

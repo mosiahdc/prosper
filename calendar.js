@@ -126,7 +126,7 @@ function refreshUI() {
             }
             runningTotal += weeklyChange;
             // The Total column now reflects the accumulated balance including previous months
-            row += `<td style="text-align:center">${Math.round(weeklyChange)}</td><td class="col-total">$${Math.round(runningTotal).toLocaleString()}</td></tr>`;
+            row += `<td style="text-align:center">${Math.round(weeklyChange)}</td><td class="col-total">₱${Math.round(runningTotal).toLocaleString()}</td></tr>`;
             html += row;
             if (dayCounter > daysInMo) break;
         }
@@ -142,11 +142,11 @@ function refreshUI() {
         const titleEl = document.getElementById(`monthTitle${s === '' ? 'Live' : 'Review'}`);
 
         if (titleEl) titleEl.innerText = title;
-        if (incomeEl) incomeEl.innerText = `$${Math.round(monthlyIncome).toLocaleString()}`;
-        if (expenseEl) expenseEl.innerText = `$${Math.round(monthlyExpense).toLocaleString()}`;
+        if (incomeEl) incomeEl.innerText = `₱${Math.round(monthlyIncome).toLocaleString()}`;
+        if (expenseEl) expenseEl.innerText = `₱${Math.round(monthlyExpense).toLocaleString()}`;
         if (netEl) {
             const netValue = monthlyIncome - monthlyExpense;
-            netEl.innerText = `${netValue >= 0 ? '+' : ''}$${Math.round(netValue).toLocaleString()}`;
+            netEl.innerText = `${netValue >= 0 ? '+' : ''}₱${Math.round(netValue).toLocaleString()}`;
         }
     });
     // At the very end of the function:
@@ -185,7 +185,7 @@ function openDayModal(dateKey, isLive) {
             <div class="day-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
                 <div>
                     <strong style="${it.isPaid ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${it.name}</strong>
-                    <br><small>$${it.amount.toLocaleString()}</small>
+                    <br><small>₱${it.amount.toLocaleString()}</small>
                 </div>
                 ${isLive ? `
                     <button class="status-pill ${statusClass}" 
@@ -249,7 +249,7 @@ function renderUpcomingSidebar() {
                     <div style="font-size: 0.75rem; color: var(--text-muted);">${item.dueDate}</div>
                 </div>
                 <div style="font-weight: 800; color: ${item.type === 'income' ? 'var(--success)' : 'var(--text-main)'};">
-                    $${item.amount.toLocaleString()}
+                    ₱${item.amount.toLocaleString()}
                 </div>
             </div>
             <button class="status-pill status-pending" style="width: 100%; margin-top: 10px; font-size: 0.6rem; padding: 4px;" 
