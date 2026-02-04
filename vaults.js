@@ -26,6 +26,13 @@ function renderVaults() {
 function openVaultModal(title = "New Vault") {
     document.getElementById('vModalTitle').innerText = title;
     document.getElementById('vaultModal').classList.add('active');
+
+    // Focus Name for new vaults, Balance for edits (if editVault hasn't handled it)
+    setTimeout(() => {
+        if (title === "New Vault") {
+            document.getElementById('vName').focus();
+        }
+    }, 100);
 }
 
 function closeVaultModal() {
@@ -63,7 +70,15 @@ function editVault(id) {
     document.getElementById('vEditId').value = v.id;
     document.getElementById('vName').value = v.name;
     document.getElementById('vBalance').value = v.balance;
+
     openVaultModal("Edit Vault");
+
+    // Put focus on the amount input
+    setTimeout(() => {
+        const balanceInput = document.getElementById('vBalance');
+        balanceInput.focus();
+        balanceInput.select(); // Optional: selects the text so you can type over it immediately
+    }, 100);
 }
 
 function deleteVault(id) {
