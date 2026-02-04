@@ -125,6 +125,8 @@ function importData(event) {
     reader.readAsText(file);
 }
 
+window.importData = importData;
+
 // NEW: Clear all data with confirmation
 function clearAllData() {
     if (!confirm(`⚠️ WARNING: This will DELETE ALL YOUR DATA!\n\nThis includes:\n• All transactions\n• All vaults\n• All jars\n• All settings\n\nThis action cannot be undone!\n\nAre you absolutely sure?`)) {
@@ -230,13 +232,3 @@ window.onclick = function (event) {
         }
     }
 };
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize import file listener
-    const importFileInput = document.getElementById('importFile');
-    if (importFileInput) {
-        importFileInput.addEventListener('change', function(event) {
-            importData(event);
-        });
-    }
-});
