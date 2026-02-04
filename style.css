@@ -1,0 +1,298 @@
+:root {
+    --primary: #4f46e5;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --nav-bg: #1e293b;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+    margin: 0;
+    display: flex;
+    background: var(--bg);
+    color: var(--text-main);
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+/* Sidebar */
+nav {
+    width: 260px;
+    background: var(--nav-bg);
+    color: white;
+    padding: 2rem 1rem;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+nav h1 {
+    font-size: 1.5rem;
+    color: #818cf8;
+    margin-bottom: 2rem;
+    padding-left: 1rem;
+}
+
+nav button {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: #cbd5e1;
+    padding: 12px 1rem;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    transition: 0.2s;
+}
+
+nav button:hover {
+    background: #334155;
+    color: white;
+}
+
+nav button.active {
+    background: var(--primary);
+    color: white;
+}
+
+/* Layout */
+main {
+    flex: 1;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 2rem;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    /* Matches the page background */
+    padding: 1rem 0;
+    z-index: 10;
+    /* Stays above the calendar grid */
+    border-bottom: 1px solid transparent;
+    /* Optional: transitions on scroll */
+}
+
+.card {
+    background: var(--card);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+/* Calendar */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+th {
+    background: #f8fafc;
+    padding: 12px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+}
+
+.cal-table td {
+    height: 110px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+    cursor: pointer;
+}
+
+.cal-table td:hover {
+    background: #f1f5f9;
+}
+
+.day-num {
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.day-amount {
+    font-size: 0.75rem;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-weight: 800;
+    display: inline-block;
+    margin-top: 5px;
+}
+
+.amt-pos {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.amt-neg {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.col-total {
+    background: #f1f5f9;
+    font-weight: 800;
+    text-align: center;
+}
+
+/* Tabs & Modals */
+.tab-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom: 2px solid var(--primary);
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: 0.2s;
+    backdrop-filter: blur(2px);
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-card {
+    background: white;
+    width: 95%;
+    max-width: 500px;
+    border-radius: 16px;
+    padding: 2rem;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn-ghost {
+    background: #f1f5f9;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.hidden {
+    display: none;
+}
+
+.today-cell {
+    background-color: #eff6ff !important;
+    /* Light blue tint */
+    border: 2px solid var(--primary) !important;
+}
+
+/* Make the Month Nav look like a solid control bar */
+.month-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: white;
+    padding: 6px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.month-nav button {
+    padding: 8px 16px;
+    font-weight: bold;
+    color: var(--primary);
+    transition: 0.2s;
+}
+
+.month-nav button:hover {
+    background: #eef2ff;
+}
+
+#monthTitleLive,
+#monthTitleReview {
+    min-width: 160px;
+    text-align: center;
+    font-size: 1.1rem;
+    color: var(--text-main);
+}
+
+.summary-badge {
+    background: white;
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.summary-badge small {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}

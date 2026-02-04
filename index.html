@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prosper | Modular Budgeting</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <nav>
+        <h1>Prosper</h1>
+        <div class="nav-links">
+            <button id="btn-vault" onclick="showPage('vault')">💎 The Vaults</button>
+            <button id="btn-dashboard" onclick="showPage('dashboard')" class="active">📅 Dashboard</button>
+            <button id="btn-review" onclick="showPage('review')">🔍 Review Page</button>
+            <button id="btn-input" onclick="showPage('input')">💸 Transactions</button>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container">
+
+            <div id="vault" class="page hidden">
+                <div class="page-header"
+                    style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 2rem; border-radius: 16px; margin-bottom: 2rem;">
+                    <div>
+                        <small style="opacity: 0.8; font-weight: bold;">TOTAL BALANCE</small>
+                        <div style="font-size: 2.5rem; font-weight: 800" id="totalVaultDisplay">$0.00</div>
+                    </div>
+                    <button class="btn-primary" style="background: white; color: var(--primary);"
+                        onclick="openVaultModal()">+ New Vault</button>
+                </div>
+                <div class="vault-grid" id="vaultContainer"
+                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
+                </div>
+            </div>
+
+            <div id="dashboard" class="page">
+                <div class="page-header">
+                    <div class="month-nav">
+                        <button class="btn-ghost" onclick="changeMonth(-1)">←</button>
+                        <span id="monthTitleLive"></span>
+                        <button class="btn-ghost" onclick="changeMonth(1)">→</button>
+                        <div style="width: 1px; height: 20px; background: var(--border); margin: 0 5px;"></div>
+                        <button class="btn-ghost" onclick="jumpToToday()">Today</button>
+                    </div>
+                    <h2 style="margin: 0;">Live View</h2>
+                </div>
+
+                <div class="card">
+                    <table class="cal-table">
+                        <thead>
+                            <tr>
+                                <th>Sun</th>
+                                <th>Mon</th>
+                                <th>Tue</th>
+                                <th>Wed</th>
+                                <th>Thu</th>
+                                <th>Fri</th>
+                                <th>Sat</th>
+                                <th>+/-</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="liveCalBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="review" class="page hidden">
+                <div class="page-header">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <div class="month-nav">
+                            <button class="btn-ghost" onclick="changeMonth(-1)">←</button>
+                            <span id="monthTitleLive"></span>
+                            <button class="btn-ghost" onclick="changeMonth(1)">→</button>
+                            <div style="width: 1px; height: 20px; background: var(--border); margin: 0 5px;"></div>
+                            <button class="btn-ghost" onclick="jumpToToday()">Today</button>
+                        </div>
+
+                        <div id="monthSummary" style="display: flex; gap: 10px; align-items: center;">
+                            <div class="summary-badge"><small>IN</small> <span id="sumIncome"
+                                    style="color: var(--success);">$0</span></div>
+                            <div class="summary-badge"><small>OUT</small> <span id="sumExpense"
+                                    style="color: var(--danger);">$0</span></div>
+                            <div class="summary-badge" style="background: var(--nav-bg); color: white;">
+                                <small>NET</small> <span id="sumNet">$0</span></div>
+                        </div>
+                    </div>
+                    <h2 style="margin: 0;">Live View</h2>
+                </div>
+            </div>
+
+            <div id="input" class="page hidden">
+                <div class="page-header">
+                    <h2>Transactions</h2>
+                    <button class="btn-primary" onclick="openTransModal()">+ Add New</button>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <input type="text" id="transSearch"
+                        placeholder="🔍 Search transactions (e.g. Rent, 1200, Monthly...)" style="margin-bottom: 0;"
+                        onkeyup="renderTransactions()">
+                </div>
+
+                <div class="tab-container">
+                    <button class="tab-btn active" id="tab-active" onclick="filterTrans('active')">Active /
+                        Future</button>
+                    <button class="tab-btn" id="tab-completed" onclick="filterTrans('completed')">Completed</button>
+                </div>
+
+                <div class="card">
+                    <table>
+                        <thead style="background: #f8fafc; text-align: left;">
+                            <tr>
+                                <th style="padding: 15px;">Description</th>
+                                <th>Date</th>
+                                <th>Freq</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionList"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="transModal">
+        <div class="modal-card">
+            <h3 id="modalTitle">Transaction Details</h3>
+            <form id="transForm">
+                <input type="hidden" id="tEditId">
+                <label>Description</label>
+                <input type="text" id="tName" required placeholder="Rent, Salary, etc.">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label>Amount</label>
+                        <input type="number" id="tAmount" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div>
+                        <label>Type</label>
+                        <select id="tType">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label>Frequency</label>
+                <select id="tFreq">
+                    <option value="none">One-time</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="biweekly">Bi-weekly</option>
+                </select>
+
+                <label>Start Date</label>
+                <input type="date" id="tDate" required>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+                    <button type="button" class="btn-ghost" onclick="closeTransModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Transaction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="vaultModal">
+        <div class="modal-card">
+            <h3 id="vModalTitle">Manage Vault</h3>
+            <input type="hidden" id="vEditId">
+            <label>Vault Name</label>
+            <input type="text" id="vName" placeholder="e.g., Savings">
+            <label>Current Balance</label>
+            <input type="number" id="vBalance" step="0.01">
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+                <button class="btn-ghost" onclick="closeVaultModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveVault()">Save Vault</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="dayModal">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 id="dayModalDate" style="margin: 0;">Day Details</h3>
+                <button class="btn-ghost" onclick="closeDayModal()">✕</button>
+            </div>
+            <div id="dayItemList"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="calendar.js"></script>
+    <script src="transactions.js"></script>
+    <script src="vaults.js"></script>
+
+</body>
+
+</html>
