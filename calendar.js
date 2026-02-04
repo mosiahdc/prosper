@@ -34,6 +34,11 @@ function getDayData(year, month, day, isLive) {
             const diff = Math.round((currentObj - tDateObj) / 86400000);
             if (diff % 14 === 0) match = true;
         }
+        // --- ADD THIS SECTION ---
+        else if (t.frequency === 'weekly' && currentObj >= tDateObj) {
+            const diff = Math.round((currentObj - tDateObj) / 86400000);
+            if (diff % 7 === 0) match = true;
+        }
 
         if (match) {
             const isPaid = fulfilledMap[`${dateKey}_${t.id}`];
