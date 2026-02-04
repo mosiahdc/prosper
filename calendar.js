@@ -41,23 +41,45 @@ function getDayData(year, month, day, isLive) {
 }
 
 function refreshUI() {
-    const totalVaults = vaults.reduce((s, v) => s + v.balance, 0);
-    const year = currentViewDate.getFullYear();
-    const month = currentViewDate.getMonth();
+    const totalVaults = vaults.reduce((s, v) => s + v.balance, 0); //
+    const year = currentViewDate.getFullYear(); //
+    const month = currentViewDate.getMonth(); //
 
-    // Summary Counters (Total for the month)
-    let monthlyIncome = 0;
-    let monthlyExpense = 0;
+    // 1. CALCULATE CARRY-OVER STARTING BALANCE
+    // We start with current totalVaults and roll back/forward to the start of the view month
+    let startingBalance = totalVaults;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const viewMonthStart = new Date(year, month, 1);
 
-    const title = currentViewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+    if (viewMonthStart > today) {
+        // Looking at the FUTURE: Add net changes from Today's date up to the Start of the View Month
+        let tempDate = new Date(today);
+        while (tempDate < viewMonthStart) {
+            const { net } = getDayData(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), true);
+            startingBalance += net;
+            tempDate.setDate(tempDate.getDate() + 1);
+        }
+    } else {
+        // Looking at the PAST/PRESENT: Subtract net changes from the View Month Start up to Today
+        let tempDate = new Date(viewMonthStart);
+        while (tempDate < today) {
+            const { net } = getDayData(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), true);
+            startingBalance -= net;
+            tempDate.setDate(tempDate.getDate() + 1);
+        }
+    }
 
-    // We loop through both modes to build the tables
+    let monthlyIncome = 0; //
+    let monthlyExpense = 0; //
+    const title = currentViewDate.toLocaleString('default', { month: 'long', year: 'numeric' }); //
+
     ['live', 'review'].forEach(mode => {
         const isLive = mode === 'live';
         const tbody = document.getElementById(isLive ? 'liveCalBody' : 'reviewCalBody');
         if (!tbody) return;
 
-        let runningTotal = totalVaults;
+        let runningTotal = startingBalance; // Begin each month with the carry-over balance
         let html = '';
         let dayCounter = 1;
 
@@ -73,7 +95,6 @@ function refreshUI() {
                 } else {
                     const { net, items, dateKey } = getDayData(year, month, dayCounter, isLive);
 
-                    // Track totals for the summary badges (only needs to be counted once)
                     if (isLive) {
                         items.forEach(it => {
                             if (it.type === 'income') monthlyIncome += it.amount;
@@ -92,6 +113,7 @@ function refreshUI() {
                 }
             }
             runningTotal += weeklyChange;
+            // The Total column now reflects the accumulated balance including previous months
             row += `<td style="text-align:center">${Math.round(weeklyChange)}</td><td class="col-total">$${Math.round(runningTotal).toLocaleString()}</td></tr>`;
             html += row;
             if (dayCounter > daysInMo) break;
@@ -99,7 +121,7 @@ function refreshUI() {
         tbody.innerHTML = html;
     });
 
-    // Update the Summary DOM for BOTH Dashboard and Review pages
+    // Update Summary Badges
     const suffix = ['', 'Review'];
     suffix.forEach(s => {
         const incomeEl = document.getElementById(`sumIncome${s}`);
