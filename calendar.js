@@ -1,6 +1,6 @@
 /**
- * CALENDAR LOGIC
- * Handles the Dashboard and Review calculations
+ * CALENDAR.JS - Final Consolidated Version
+ * Handles the Dashboard, Review calculations, and UI Refresh
  */
 
 function getDayData(year, month, day, isLive) {
@@ -11,13 +11,19 @@ function getDayData(year, month, day, isLive) {
 
     transactions.forEach(t => {
         const tParts = t.date.split('-');
+        // Force time to midnight to avoid Daylight Savings offset errors
         const tDateObj = new Date(parseInt(tParts[0]), parseInt(tParts[1]) - 1, parseInt(tParts[2]));
+        tDateObj.setHours(0, 0, 0, 0);
+
         const currentObj = new Date(year, month, day);
+        currentObj.setHours(0, 0, 0, 0);
 
         let match = false;
-        if (t.frequency === 'none' && t.date === dateKey) match = true;
-        else if (t.frequency === 'monthly' && parseInt(tParts[2]) === day && currentObj >= tDateObj) match = true;
-        else if (t.frequency === 'biweekly' && currentObj >= tDateObj) {
+        if (t.frequency === 'none' && t.date === dateKey) {
+            match = true;
+        } else if (t.frequency === 'monthly' && parseInt(tParts[2]) === day && currentObj >= tDateObj) {
+            match = true;
+        } else if (t.frequency === 'biweekly' && currentObj >= tDateObj) {
             const diff = Math.round((currentObj - tDateObj) / 86400000);
             if (diff % 14 === 0) match = true;
         }
@@ -26,6 +32,8 @@ function getDayData(year, month, day, isLive) {
             const isPaid = fulfilledMap[`${dateKey}_${t.id}`];
             const val = (t.type === 'income' ? t.amount : -t.amount);
             items.push({ ...t, val, isPaid });
+
+            // Logic: Live view ignores the 'net' impact of items already marked as paid
             if (!(isLive && isPaid)) net += val;
         }
     });
@@ -37,16 +45,13 @@ function refreshUI() {
     const year = currentViewDate.getFullYear();
     const month = currentViewDate.getMonth();
 
-    // NEW: Summary Counters
+    // Summary Counters (Total for the month)
     let monthlyIncome = 0;
     let monthlyExpense = 0;
 
     const title = currentViewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-    if (document.getElementById('monthTitleLive')) document.getElementById('monthTitleLive').innerText = title;
 
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMo = new Date(year, month + 1, 0).getDate();
-
+    // We loop through both modes to build the tables
     ['live', 'review'].forEach(mode => {
         const isLive = mode === 'live';
         const tbody = document.getElementById(isLive ? 'liveCalBody' : 'reviewCalBody');
@@ -55,6 +60,9 @@ function refreshUI() {
         let runningTotal = totalVaults;
         let html = '';
         let dayCounter = 1;
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMo = new Date(year, month + 1, 0).getDate();
 
         for (let i = 0; i < 6; i++) {
             let row = '<tr>';
@@ -65,7 +73,7 @@ function refreshUI() {
                 } else {
                     const { net, items, dateKey } = getDayData(year, month, dayCounter, isLive);
 
-                    // NEW: Track totals for the summary (only once per day loop)
+                    // Track totals for the summary badges (only needs to be counted once)
                     if (isLive) {
                         items.forEach(it => {
                             if (it.type === 'income') monthlyIncome += it.amount;
@@ -91,13 +99,22 @@ function refreshUI() {
         tbody.innerHTML = html;
     });
 
-    // Update the Summary DOM
-    if (document.getElementById('sumIncome')) {
-        document.getElementById('sumIncome').innerText = `$${Math.round(monthlyIncome).toLocaleString()}`;
-        document.getElementById('sumExpense').innerText = `$${Math.round(monthlyExpense).toLocaleString()}`;
-        const net = monthlyIncome - monthlyExpense;
-        document.getElementById('sumNet').innerText = `${net >= 0 ? '+' : ''}$${Math.round(net).toLocaleString()}`;
-    }
+    // Update the Summary DOM for BOTH Dashboard and Review pages
+    const suffix = ['', 'Review'];
+    suffix.forEach(s => {
+        const incomeEl = document.getElementById(`sumIncome${s}`);
+        const expenseEl = document.getElementById(`sumExpense${s}`);
+        const netEl = document.getElementById(`sumNet${s}`);
+        const titleEl = document.getElementById(`monthTitle${s === '' ? 'Live' : 'Review'}`);
+
+        if (titleEl) titleEl.innerText = title;
+        if (incomeEl) incomeEl.innerText = `$${Math.round(monthlyIncome).toLocaleString()}`;
+        if (expenseEl) expenseEl.innerText = `$${Math.round(monthlyExpense).toLocaleString()}`;
+        if (netEl) {
+            const netValue = monthlyIncome - monthlyExpense;
+            netEl.innerText = `${netValue >= 0 ? '+' : ''}$${Math.round(netValue).toLocaleString()}`;
+        }
+    });
 }
 
 function changeMonth(step) {
@@ -105,30 +122,23 @@ function changeMonth(step) {
     refreshUI();
 }
 
-/**
- * Snaps the calendar back to the current real-world month
- */
 function jumpToToday() {
     currentViewDate = new Date();
-    currentViewDate.setDate(1); // Ensure we start at the 1st
+    currentViewDate.setDate(1);
     refreshUI();
 }
 
-/**
- * Enhanced Day Modal logic to show a 'Today' highlight 
- * (Optional: Add this inside openDayModal in calendar.js for better UX)
- */
 function openDayModal(dateKey, isLive) {
     const todayStr = new Date().toISOString().split('T')[0];
     const parts = dateKey.split('-');
+    // Always fetch all items (isLive=false) for the modal list so user can see/toggle them
     const { items } = getDayData(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), false);
 
-    // Highlight if it's today
     const titlePrefix = (dateKey === todayStr) ? "⭐ Today - " : "";
     document.getElementById('dayModalDate').innerText = titlePrefix + dateKey;
 
     document.getElementById('dayItemList').innerHTML = items.map(it => `
-        <div class="day-item">
+        <div class="day-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
             <div><strong>${it.name}</strong><br><small>$${it.amount.toLocaleString()}</small></div>
             ${isLive ? `<button class="status-pill ${it.isPaid ? 'status-paid' : 'status-pending'}" onclick="toggleFulfill('${dateKey}',${it.id})">${it.isPaid ? 'PAID' : 'MARK PAID'}</button>` : ''}
         </div>
@@ -137,15 +147,12 @@ function openDayModal(dateKey, isLive) {
     document.getElementById('dayModal').classList.add('active');
 }
 
-/**
- * Fulfillment toggle logic (Keep in calendar.js)
- */
 function toggleFulfill(dateKey, id) {
     const k = `${dateKey}_${id}`;
     if (fulfilledMap[k]) delete fulfilledMap[k]; else fulfilledMap[k] = true;
-    saveData(); // This calls the function in app.js
+    saveData();
     refreshUI();
-    openDayModal(dateKey, true); // Refresh modal view
+    openDayModal(dateKey, true);
 }
 
 function closeDayModal() {

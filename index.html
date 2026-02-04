@@ -75,22 +75,40 @@
                     <div style="display: flex; align-items: center; gap: 20px;">
                         <div class="month-nav">
                             <button class="btn-ghost" onclick="changeMonth(-1)">←</button>
-                            <span id="monthTitleLive"></span>
+                            <span id="monthTitleReview"></span>
                             <button class="btn-ghost" onclick="changeMonth(1)">→</button>
                             <div style="width: 1px; height: 20px; background: var(--border); margin: 0 5px;"></div>
                             <button class="btn-ghost" onclick="jumpToToday()">Today</button>
                         </div>
 
-                        <div id="monthSummary" style="display: flex; gap: 10px; align-items: center;">
-                            <div class="summary-badge"><small>IN</small> <span id="sumIncome"
+                        <div id="monthSummaryReview" style="display: flex; gap: 10px; align-items: center;">
+                            <div class="summary-badge"><small>IN</small> <span id="sumIncomeReview"
                                     style="color: var(--success);">$0</span></div>
-                            <div class="summary-badge"><small>OUT</small> <span id="sumExpense"
+                            <div class="summary-badge"><small>OUT</small> <span id="sumExpenseReview"
                                     style="color: var(--danger);">$0</span></div>
                             <div class="summary-badge" style="background: var(--nav-bg); color: white;">
-                                <small>NET</small> <span id="sumNet">$0</span></div>
+                                <small>NET</small> <span id="sumNetReview">$0</span></div>
                         </div>
                     </div>
-                    <h2 style="margin: 0;">Live View</h2>
+                    <h2 style="margin: 0;">Forecast View</h2>
+                </div>
+                <div class="card">
+                    <table class="cal-table">
+                        <thead>
+                            <tr>
+                                <th>Sun</th>
+                                <th>Mon</th>
+                                <th>Tue</th>
+                                <th>Wed</th>
+                                <th>Thu</th>
+                                <th>Fri</th>
+                                <th>Sat</th>
+                                <th>+/-</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reviewCalBody"></tbody>
+                    </table>
                 </div>
             </div>
 
