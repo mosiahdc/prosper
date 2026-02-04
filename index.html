@@ -76,43 +76,51 @@
 
             <div id="review" class="page hidden">
                 <div class="page-header">
-                    <div class="review-header-left">
-                        <div class="month-nav">
-                            <button class="btn-ghost" onclick="changeMonth(-1)">←</button>
-                            <span id="monthTitleReview"></span>
-                            <button class="btn-ghost" onclick="changeMonth(1)">→</button>
-                            <div class="divider-v"></div>
-                            <button class="btn-ghost" onclick="jumpToToday()">Today</button>
-                        </div>
-
-                        <div id="monthSummaryReview" class="badge-container">
-                            <div class="summary-badge bg-pos"><small>IN</small> <span id="sumIncomeReview">₱0</span>
-                            </div>
-                            <div class="summary-badge bg-neg"><small>OUT</small> <span id="sumExpenseReview">₱0</span>
-                            </div>
-                            <div class="summary-badge bg-dark"><small>NET</small> <span id="sumNetReview">₱0</span>
-                            </div>
-                        </div>
+                    <div class="month-nav">
+                        <button class="btn-ghost" onclick="changeMonth(-1)">←</button>
+                        <span id="monthTitleReview"></span> <button class="btn-ghost"
+                            onclick="changeMonth(1)">→</button>
+                        <div class="divider-v"></div>
+                        <button class="btn-ghost" onclick="jumpToToday()">Today</button>
                     </div>
                     <h2 style="margin: 0;">Forecast View</h2>
                 </div>
-                <div class="card">
-                    <table class="cal-table">
-                        <thead>
-                            <tr>
-                                <th>Sun</th>
-                                <th>Mon</th>
-                                <th>Tue</th>
-                                <th>Wed</th>
-                                <th>Thu</th>
-                                <th>Fri</th>
-                                <th>Sat</th>
-                                <th class="col-divider">+/-</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody id="reviewCalBody"></tbody>
-                    </table>
+
+                <div class="dashboard-layout">
+                    <div class="card calendar-card">
+                        <table class="cal-table">
+                            <thead>
+                                <tr>
+                                    <th>Sun</th>
+                                    <th>Mon</th>
+                                    <th>Tue</th>
+                                    <th>Wed</th>
+                                    <th>Thu</th>
+                                    <th>Fri</th>
+                                    <th>Sat</th>
+                                    <th class="col-divider">+/-</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reviewCalBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="summary-side-panel">
+                        <h3 class="sidebar-title">Monthly Summary</h3>
+                        <div class="card summary-badge bg-pos">
+                            <small>INCOME</small>
+                            <div id="sumRevIncome">₱0</div>
+                        </div>
+                        <div class="card summary-badge bg-neg" style="margin-top: 10px;">
+                            <small>EXPENSE</small>
+                            <div id="sumRevExpense">₱0</div>
+                        </div>
+                        <div class="card summary-badge bg-dark" style="margin-top: 10px;">
+                            <small>NET</small>
+                            <div id="sumRevNet">₱0</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 

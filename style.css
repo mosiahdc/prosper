@@ -381,6 +381,42 @@ select {
 }
 
 .status-partial {
-    background: #f39c12; /* Orange */
+    background: #f39c12;
+    /* Orange */
     color: white;
+}
+
+
+/* Apply side-by-side layout to Review page */
+#review .dashboard-layout {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+}
+
+/* Ensure the calendar takes up the most space */
+#review .calendar-card {
+    flex: 3;
+}
+
+/* Ensure the summary cards (side panel) have a set width */
+#review .summary-side-panel {
+    flex: 1;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.summary-side-panel {
+    flex: 0 0 280px;
+    /* Gives the sidebar a fixed width */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.summary-side-panel .card {
+    padding: 1.5rem;
+    text-align: left;
 }

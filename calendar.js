@@ -137,7 +137,7 @@ function refreshUI() {
             if (dayCounter > daysInMo) break;
         }
         tbody.innerHTML = html;
-        if (isLive) updateSummary(monthlyIncome, monthlyExpense, title);
+        updateSummary(monthlyIncome, monthlyExpense, title, isLive);
     });
 
     renderUpcomingSidebar();
@@ -145,17 +145,15 @@ function refreshUI() {
 
 function openDayModal(dateKey, isLive) {
     const parts = dateKey.split('-');
-    // Re-fetch the items to get the updated status from fulfilledMap
+    // RE-FETCH data inside the function to see the new fulfilledMap values
     const { items } = getDayData(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), false);
 
     document.getElementById('dayModalDate').innerText = dateKey;
     const list = document.getElementById('dayItemList');
 
     list.innerHTML = items.map(it => {
-        // This is where we check the updated data
         const status = fulfilledMap[`${dateKey}_${it.id}`];
-        const amountPaid = (status && status.amountPaid !== undefined) ? status.amountPaid : 0;
-
+        const amountPaid = status ? status.amountPaid : 0;
         const isFullyPaid = amountPaid >= it.amount;
         const isPartial = amountPaid > 0 && amountPaid < it.amount;
 
@@ -213,10 +211,9 @@ function toggleFulfill(dateKey, id) {
 function confirmPayment() {
     if (!pendingPaymentData) return;
 
-    const amtInput = document.getElementById('paymentAmountInput');
-    const amt = parseFloat(amtInput.value);
+    const amt = parseFloat(document.getElementById('paymentAmountInput').value);
     const k = pendingPaymentData.key;
-    const dateKey = pendingPaymentData.dateKey; // Capture this before closing
+    const dateKey = pendingPaymentData.dateKey; // Capture the date before clearing data
 
     if (isNaN(amt) || amt <= 0) {
         delete fulfilledMap[k];
@@ -224,18 +221,20 @@ function confirmPayment() {
         fulfilledMap[k] = { paid: true, amountPaid: amt };
     }
 
-    // 1. Save data to localStorage
+    // 1. Save data
     saveData();
 
-    // 2. Refresh the background grid
+    // 2. Refresh the background calendar
     refreshUI();
 
-    // 3. Close the payment input modal
+    // 3. Close the payment input box
     closePaymentModal();
 
-    // 4. THE CRITICAL REFRESH
-    console.log("Refreshing modal for:", dateKey);
-    openDayModal(dateKey, true);
+    // 4. THE FIX: Small delay ensures the DOM is ready for the refresh
+    setTimeout(() => {
+        console.log("Forcing Modal Refresh for: ", dateKey);
+        openDayModal(dateKey, true);
+    }, 50);
 }
 
 function closePaymentModal() {
@@ -256,12 +255,20 @@ function unpayItem(dateKey, id) {
 }
 
 // ... rest of the helper functions remain unchanged ...
-function updateSummary(inc, exp, title) {
-    const titleEl = document.getElementById('monthTitleLive');
+function updateSummary(inc, exp, title, isLive) {
+    // If isLive is true, it uses Dashboard IDs. If false, it uses Review IDs.
+    const titleId = isLive ? 'monthTitleLive' : 'monthTitleReview';
+    const incId = isLive ? 'sumIncome' : 'sumRevIncome';
+    const expId = isLive ? 'sumExpense' : 'sumRevExpense';
+    const netId = isLive ? 'sumNet' : 'sumRevNet';
+
+    const titleEl = document.getElementById(titleId);
     if (titleEl) titleEl.innerText = title;
-    const incEl = document.getElementById('sumIncome');
-    const expEl = document.getElementById('sumExpense');
-    const netEl = document.getElementById('sumNet');
+
+    const incEl = document.getElementById(incId);
+    const expEl = document.getElementById(expId);
+    const netEl = document.getElementById(netId);
+
     if (incEl) incEl.innerText = `₱${Math.round(inc).toLocaleString()}`;
     if (expEl) expEl.innerText = `₱${Math.round(exp).toLocaleString()}`;
     if (netEl) {
@@ -269,6 +276,8 @@ function updateSummary(inc, exp, title) {
         netEl.innerText = `${netValue >= 0 ? '+' : ''}₱${Math.round(netValue).toLocaleString()}`;
     }
 }
+
+
 function renderUpcomingSidebar() {
     const listContainer = document.getElementById('upcomingList');
     if (!listContainer) return;
