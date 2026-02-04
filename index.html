@@ -50,23 +50,33 @@
                     <h2 style="margin: 0;">Live View</h2>
                 </div>
 
-                <div class="card">
-                    <table class="cal-table">
-                        <thead>
-                            <tr>
-                                <th>Sun</th>
-                                <th>Mon</th>
-                                <th>Tue</th>
-                                <th>Wed</th>
-                                <th>Thu</th>
-                                <th>Fri</th>
-                                <th>Sat</th>
-                                <th>+/-</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody id="liveCalBody"></tbody>
-                    </table>
+                <div style="display: flex; gap: 2rem; align-items: flex-start;">
+                    <div class="card" style="flex: 1;">
+                        <table class="cal-table">
+                            <thead>
+                                <tr>
+                                    <th>Sun</th>
+                                    <th>Mon</th>
+                                    <th>Tue</th>
+                                    <th>Wed</th>
+                                    <th>Thu</th>
+                                    <th>Fri</th>
+                                    <th>Sat</th>
+                                    <th>+/-</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="liveCalBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div id="upcomingSidebar" style="width: 300px; position: sticky; top: 80px;">
+                        <h3
+                            style="margin-top: 0; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">
+                            Due in 5 Days</h3>
+                        <div id="upcomingList" style="display: flex; flex-direction: column; gap: 10px;">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -87,7 +97,8 @@
                             <div class="summary-badge"><small>OUT</small> <span id="sumExpenseReview"
                                     style="color: var(--danger);">$0</span></div>
                             <div class="summary-badge" style="background: var(--nav-bg); color: white;">
-                                <small>NET</small> <span id="sumNetReview">$0</span></div>
+                                <small>NET</small> <span id="sumNetReview">$0</span>
+                            </div>
                         </div>
                     </div>
                     <h2 style="margin: 0;">Forecast View</h2>

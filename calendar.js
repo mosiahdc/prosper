@@ -137,6 +137,8 @@ function refreshUI() {
             netEl.innerText = `${netValue >= 0 ? '+' : ''}$${Math.round(netValue).toLocaleString()}`;
         }
     });
+    // At the very end of the function:
+    renderUpcomingSidebar();
 }
 
 function changeMonth(step) {
@@ -195,4 +197,53 @@ function toggleFulfill(dateKey, id) {
 
 function closeDayModal() {
     document.getElementById('dayModal').classList.remove('active');
+}
+
+
+function renderUpcomingSidebar() {
+    const listContainer = document.getElementById('upcomingList');
+    if (!listContainer) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const fiveDaysOut = new Date(today);
+    fiveDaysOut.setDate(today.getDate() + 5);
+
+    let upcoming = [];
+
+    // Check every day for the next 5 days
+    for (let d = new Date(today); d <= fiveDaysOut; d.setDate(d.getDate() + 1)) {
+        const { items, dateKey } = getDayData(d.getFullYear(), d.getMonth(), d.getDate(), false);
+
+        items.forEach(item => {
+            // Only show if not already marked paid
+            if (!item.isPaid) {
+                upcoming.push({ ...item, dueDate: dateKey });
+            }
+        });
+    }
+
+    if (upcoming.length === 0) {
+        listContainer.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 1rem; text-align: center; border: 1px dashed var(--border); border-radius: 8px;">All clear! No upcoming dues.</div>`;
+        return;
+    }
+
+    listContainer.innerHTML = upcoming.map(item => `
+        <div class="card" style="padding: 12px; margin-bottom: 0; border-left: 4px solid ${item.type === 'income' ? 'var(--success)' : 'var(--primary)'};">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <div style="font-weight: 700; font-size: 0.9rem;">${item.name}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">${item.dueDate}</div>
+                </div>
+                <div style="font-weight: 800; color: ${item.type === 'income' ? 'var(--success)' : 'var(--text-main)'};">
+                    $${item.amount.toLocaleString()}
+                </div>
+            </div>
+            <button class="status-pill status-pending" style="width: 100%; margin-top: 10px; font-size: 0.6rem; padding: 4px;" 
+                onclick="toggleFulfill('${item.dueDate}', ${item.id})">
+                Mark Paid
+            </button>
+        </div>
+    `).join('');
 }
