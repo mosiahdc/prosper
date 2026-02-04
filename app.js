@@ -30,3 +30,25 @@ function saveData() {
 
 // Initial Load
 window.onload = () => showPage('dashboard');
+
+/**
+ * GLOBAL MODAL CLICK-OUTSIDE LOGIC
+ * Detects if the user clicks the darkened background to close modals.
+ */
+window.onclick = function (event) {
+    if (event.target.classList.contains('modal-overlay')) {
+        const modalId = event.target.id;
+
+        // Route to the specific cleanup functions in your other JS files
+        if (modalId === 'vaultModal') {
+            closeVaultModal();
+        } else if (modalId === 'transModal') {
+            closeTransModal();
+        } else if (modalId === 'dayModal') {
+            closeDayModal();
+        } else {
+            // Fallback: just remove the active class if no specific function is found
+            event.target.classList.remove('active');
+        }
+    }
+};
