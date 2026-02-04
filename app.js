@@ -5,7 +5,7 @@ let vaults = JSON.parse(localStorage.getItem('vaultsData')) || [];
 let jars = JSON.parse(localStorage.getItem('jarsData')) || [];
 let transactions = JSON.parse(localStorage.getItem('moneyData')) || [];
 let fulfilledMap = JSON.parse(localStorage.getItem('fulfilledData')) || {};
-let skippedMap = JSON.parse(localStorage.getItem('skippedData')) || {}; 
+let skippedMap = JSON.parse(localStorage.getItem('skippedData')) || {};
 let vaultOrder = JSON.parse(localStorage.getItem('vaultOrder')) || [];
 let jarOrder = JSON.parse(localStorage.getItem('jarOrder')) || [];
 let currentViewDate = new Date(); currentViewDate.setDate(1);
@@ -39,10 +39,10 @@ function saveData() {
     localStorage.setItem('vaultOrder', JSON.stringify(vaultOrder));
     localStorage.setItem('jarOrder', JSON.stringify(jarOrder));
     localStorage.setItem('categoryCollapsedState', JSON.stringify(categoryCollapsedState || {}));
-    
+
     // Track last save
     localStorage.setItem('lastSave', new Date().toISOString());
-    
+
     console.log('💾 Data saved successfully');
 }
 
@@ -60,20 +60,20 @@ function exportData() {
         jarOrder,
         categoryCollapsedState: categoryCollapsedState || {}
     };
-    
+
     const dataStr = JSON.stringify(allData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
     const exportFileDefaultName = `prosper-backup-${new Date().toISOString().split('T')[0]}.json`;
-    
+
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
-    
+
     // Show success message
     alert(`✅ Data exported successfully!\nFile: ${exportFileDefaultName}\nTotal: ${transactions.length} transactions, ${vaults.length} vaults, ${jars.length} jars`);
-    
+
     return false;
 }
 
@@ -81,17 +81,17 @@ function exportData() {
 function importData(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         try {
             const importedData = JSON.parse(e.target.result);
-            
+
             // Validate the imported data structure
             if (!confirm(`⚠️ WARNING: This will replace ALL your current data.\n\nImport from: ${importedData.exportDate || 'unknown date'}\n\nDo you want to continue?`)) {
                 return;
             }
-            
+
             // Import the data
             if (importedData.vaults) vaults = importedData.vaults;
             if (importedData.jars) jars = importedData.jars;
@@ -101,22 +101,22 @@ function importData(event) {
             if (importedData.vaultOrder) vaultOrder = importedData.vaultOrder;
             if (importedData.jarOrder) jarOrder = importedData.jarOrder;
             if (importedData.categoryCollapsedState) categoryCollapsedState = importedData.categoryCollapsedState;
-            
+
             // Save to localStorage
             saveData();
-            
+
             // Refresh all pages
             if (typeof refreshUI === "function") refreshUI();
             if (typeof renderTransactions === "function") renderTransactions();
             if (typeof renderVaults === "function") renderVaults();
             if (typeof renderJars === "function") renderJars();
             if (typeof renderSettings === "function") renderSettings();
-            
+
             // Clear the file input
             event.target.value = '';
-            
+
             alert(`✅ Data imported successfully!\n\nSummary:\n• ${transactions.length} transactions\n• ${vaults.length} vaults\n• ${jars.length} jars`);
-            
+
         } catch (error) {
             alert(`❌ Error importing data: ${error.message}\n\nPlease make sure you selected a valid Prosper backup file.`);
             console.error('Import error:', error);
@@ -130,17 +130,17 @@ function clearAllData() {
     if (!confirm(`⚠️ WARNING: This will DELETE ALL YOUR DATA!\n\nThis includes:\n• All transactions\n• All vaults\n• All jars\n• All settings\n\nThis action cannot be undone!\n\nAre you absolutely sure?`)) {
         return;
     }
-    
+
     if (!confirm(`🚨 FINAL WARNING: You are about to delete ALL data.\n\nType "DELETE" to confirm:`)) {
         return;
     }
-    
+
     const userInput = prompt('Type "DELETE" to confirm deletion:');
     if (userInput !== 'DELETE') {
         alert('Deletion cancelled.');
         return;
     }
-    
+
     // Clear all data arrays
     vaults = [];
     jars = [];
@@ -150,19 +150,19 @@ function clearAllData() {
     vaultOrder = [];
     jarOrder = [];
     categoryCollapsedState = {};
-    
+
     // Clear localStorage
     localStorage.clear();
-    
+
     // Refresh all pages
     if (typeof refreshUI === "function") refreshUI();
     if (typeof renderTransactions === "function") renderTransactions();
     if (typeof renderVaults === "function") renderVaults();
     if (typeof renderJars === "function") renderJars();
     if (typeof renderSettings === "function") renderSettings();
-    
+
     alert('✅ All data has been cleared. The app will now reset.');
-    
+
     // Redirect to dashboard
     showPage('dashboard');
 }
@@ -178,7 +178,7 @@ function renderSettings() {
         totalStorage: JSON.stringify(localStorage).length,
         lastBackup: localStorage.getItem('lastBackup') || 'Never'
     };
-    
+
     const statsEl = document.getElementById('settingsStats');
     if (statsEl) {
         statsEl.innerHTML = `
@@ -230,3 +230,13 @@ window.onclick = function (event) {
         }
     }
 };
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize import file listener
+    const importFileInput = document.getElementById('importFile');
+    if (importFileInput) {
+        importFileInput.addEventListener('change', function (event) {
+            importData(event);
+        });
+    }
+});
