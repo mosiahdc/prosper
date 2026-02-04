@@ -231,11 +231,11 @@ window.onclick = function (event) {
     }
 };
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
     // Initialize import file listener
     const importFileInput = document.getElementById('importFile');
     if (importFileInput) {
-        importFileInput.addEventListener('change', function (event) {
+        importFileInput.addEventListener('change', function(event) {
             importData(event);
         });
     }
