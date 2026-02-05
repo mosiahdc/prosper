@@ -157,16 +157,34 @@ function clearAllData() {
     localStorage.clear();
 
     // Refresh all pages
-    if (typeof refreshUI === "function") refreshUI();
-    if (typeof renderTransactions === "function") renderTransactions();
-    if (typeof renderVaults === "function") renderVaults();
-    if (typeof renderJars === "function") renderJars();
-    if (typeof renderSettings === "function") renderSettings();
+    // if (typeof refreshUI === "function") refreshUI();
+    // if (typeof renderTransactions === "function") renderTransactions();
+    // if (typeof renderVaults === "function") renderVaults();
+    // if (typeof renderJars === "function") renderJars();
+    // if (typeof renderSettings === "function") renderSettings();
 
-    alert('✅ All data has been cleared. The app will now reset.');
+    // alert('✅ All data has been cleared. The app will now reset.');
 
-    // Redirect to dashboard
+    // // Redirect to dashboard
+    // showPage('dashboard');
+
+    // Clear calendar caches (important!)
+    if (typeof dayDataCache !== 'undefined') {
+        dayDataCache.clear();
+    }
+
+    if (typeof transactionIndex !== 'undefined') {
+        transactionIndex = null;
+    }
+
+    // Don't call individual refresh functions - let showPage handle them
+    // Just redirect to dashboard immediately
     showPage('dashboard');
+
+    // Small delay to ensure DOM is ready, then show confirmation
+    setTimeout(() => {
+        alert('✅ All data has been cleared. The app has been reset.');
+    }, 100);
 }
 
 // NEW: Render settings page
@@ -204,6 +222,8 @@ function renderSettings() {
             </div>
         `;
     }
+
+
 }
 
 // Initial Load

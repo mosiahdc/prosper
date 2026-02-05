@@ -14,6 +14,13 @@
 let transactionIndex = null;
 let dayDataCache = new Map();
 
+// Helper function to get date string in YYYY-MM-DD format (local time)
+function getLocalDateString(date) {
+    return date.getFullYear() + '-' +
+           String(date.getMonth() + 1).padStart(2, '0') + '-' +
+           String(date.getDate()).padStart(2, '0');
+}
+
 /**
  * Builds an optimized index of transactions grouped by frequency
  * This runs once when transactions change, not on every day lookup
@@ -104,13 +111,8 @@ function doesTransactionMatch(transaction, currentDate, currentTimestamp) {
 
     // One-time: Simple date comparison
     if (freq === 'none') {
-        // Get YYYY-MM-DD in local timezone (not UTC)
-        const currentDateStr = currentDate.getFullYear() + '-' +
-            String(currentDate.getMonth() + 1).padStart(2, '0') + '-' +
-            String(currentDate.getDate()).padStart(2, '0');
-
         // Compare with transaction.date (which is already in YYYY-MM-DD format)
-        return transaction.date === currentDateStr;
+        return transaction.date === getLocalDateString(currentDate);
     }
 
     // Monthly: Match day of month
@@ -282,8 +284,8 @@ function refreshUI() {
     console.log('💰 Starting calculation:', {
         totalVaults,
         viewMonth: `${year}-${month + 1}`,
-        today: today.toISOString().split('T')[0],
-        viewMonthStart: viewMonthStart.toISOString().split('T')[0]
+        today: getLocalDateString(today),
+        viewMonthStart: getLocalDateString(viewMonthStart)
     });
 
     const startingBalance = calculateStartingBalance(totalVaults, viewMonthStart, today);
@@ -294,8 +296,8 @@ function refreshUI() {
     let monthlyExpense = 0;
     const title = currentViewDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-    // Get today's date string once
-    const todayStr = today.toISOString().split('T')[0];
+    // Get today's date string in local time
+    const todayStr = getLocalDateString(today);
 
     // Render both calendars
     ['live', 'review'].forEach(mode => {
@@ -410,7 +412,10 @@ function jumpToToday() {
 // ============================================
 
 function openDayModal(dateKey, isLive) {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = getLocalDateString(today);
+    
     const parts = dateKey.split('-');
 
     // Always fetch all items (isLive = false) to show complete list
