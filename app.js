@@ -105,17 +105,56 @@ function importData(event) {
             // Save to localStorage
             saveData();
 
-            // Refresh all pages
-            if (typeof refreshUI === "function") refreshUI();
-            if (typeof renderTransactions === "function") renderTransactions();
-            if (typeof renderVaults === "function") renderVaults();
-            if (typeof renderJars === "function") renderJars();
-            if (typeof renderSettings === "function") renderSettings();
+            // CRITICAL: Clear all caches
+            if (typeof dayDataCache !== 'undefined') {
+                dayDataCache.clear();
+                console.log('🗑️ Cleared dayDataCache after import');
+            }
+
+            if (typeof transactionIndex !== 'undefined') {
+                transactionIndex = null;
+                console.log('🗑️ Cleared transactionIndex after import');
+            }
+
+            // Force rebuild transaction index
+            if (typeof invalidateTransactionCache === 'function') {
+                invalidateTransactionCache();
+                console.log('🔄 Rebuilt transaction cache after import');
+            }
+
+            // CRITICAL: Force refresh all UI components
+            // First ensure we're on the dashboard to see changes
+            setTimeout(() => {
+                showPage('dashboard');
+
+                // Then force refresh all components
+                setTimeout(() => {
+                    if (typeof refreshUI === "function") {
+                        refreshUI();
+                        console.log('🔄 Forced UI refresh after import');
+                    }
+
+                    if (typeof renderVaults === "function") {
+                        renderVaults();
+                        console.log('🔄 Rendered vaults after import');
+                    }
+
+                    if (typeof renderJars === "function") {
+                        renderJars();
+                        console.log('🔄 Rendered jars after import');
+                    }
+
+                    if (typeof renderTransactions === "function") {
+                        renderTransactions();
+                        console.log('🔄 Rendered transactions after import');
+                    }
+                }, 50);
+            }, 50);
 
             // Clear the file input
             event.target.value = '';
 
-            alert(`✅ Data imported successfully!\n\nSummary:\n• ${transactions.length} transactions\n• ${vaults.length} vaults\n• ${jars.length} jars`);
+            alert(`✅ Data imported successfully!\n\nSummary:\n• ${transactions.length} transactions\n• ${vaults.length} vaults\n• ${jars.length} jars\n\nRedirecting to dashboard...`);
 
         } catch (error) {
             alert(`❌ Error importing data: ${error.message}\n\nPlease make sure you selected a valid Prosper backup file.`);
@@ -156,33 +195,52 @@ function clearAllData() {
     // Clear localStorage
     localStorage.clear();
 
-    // Refresh all pages
-    // if (typeof refreshUI === "function") refreshUI();
-    // if (typeof renderTransactions === "function") renderTransactions();
-    // if (typeof renderVaults === "function") renderVaults();
-    // if (typeof renderJars === "function") renderJars();
-    // if (typeof renderSettings === "function") renderSettings();
-
-    // alert('✅ All data has been cleared. The app will now reset.');
-
-    // // Redirect to dashboard
-    // showPage('dashboard');
-
-    // Clear calendar caches (important!)
+    // Clear calendar caches
     if (typeof dayDataCache !== 'undefined') {
         dayDataCache.clear();
+        console.log('🗑️ Cleared dayDataCache');
     }
 
     if (typeof transactionIndex !== 'undefined') {
         transactionIndex = null;
+        console.log('🗑️ Cleared transactionIndex');
     }
 
-    // Don't call individual refresh functions - let showPage handle them
-    // Just redirect to dashboard immediately
+    // Reset view date
+    currentViewDate = new Date();
+    currentViewDate.setDate(1);
+
+    // Force cache rebuild
+    if (typeof invalidateTransactionCache === 'function') {
+        invalidateTransactionCache();
+        console.log('🔄 Invalidated transaction cache');
+    }
+
+    // Switch to dashboard FIRST
     showPage('dashboard');
 
-    // Small delay to ensure DOM is ready, then show confirmation
+    // Then force refresh all components
     setTimeout(() => {
+        if (typeof refreshUI === "function") {
+            refreshUI();
+            console.log('🔄 Forced UI refresh');
+        }
+
+        if (typeof renderVaults === "function") {
+            renderVaults();
+            console.log('🔄 Rendered vaults');
+        }
+
+        if (typeof renderJars === "function") {
+            renderJars();
+            console.log('🔄 Rendered jars');
+        }
+
+        if (typeof renderTransactions === "function") {
+            renderTransactions();
+            console.log('🔄 Rendered transactions');
+        }
+
         alert('✅ All data has been cleared. The app has been reset.');
     }, 100);
 }

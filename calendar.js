@@ -11,6 +11,25 @@
 // CACHE & INDEX MANAGEMENT
 // ============================================
 
+
+// Add this at the very top of calendar.js (after the file content begin)
+console.log('📅 calendar.js loaded');
+
+// Add this inside invalidateTransactionCache() function:
+function invalidateTransactionCache() {
+    transactionIndex = buildTransactionIndex();
+    dayDataCache.clear();
+    
+    // Debug logging
+    console.log('📊 Transaction cache rebuilt:', {
+        transactions: transactions.length,
+        dayDataCacheSize: dayDataCache.size,
+        transactionIndex: transactionIndex ? 'built' : 'null'
+    });
+}
+
+
+
 let transactionIndex = null;
 let dayDataCache = new Map();
 
