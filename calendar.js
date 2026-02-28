@@ -19,7 +19,7 @@ console.log('📅 calendar.js loaded');
 function invalidateTransactionCache() {
     transactionIndex = buildTransactionIndex();
     dayDataCache.clear();
-    
+
     // Debug logging
     console.log('📊 Transaction cache rebuilt:', {
         transactions: transactions.length,
@@ -36,8 +36,8 @@ let dayDataCache = new Map();
 // Helper function to get date string in YYYY-MM-DD format (local time)
 function getLocalDateString(date) {
     return date.getFullYear() + '-' +
-           String(date.getMonth() + 1).padStart(2, '0') + '-' +
-           String(date.getDate()).padStart(2, '0');
+        String(date.getMonth() + 1).padStart(2, '0') + '-' +
+        String(date.getDate()).padStart(2, '0');
 }
 
 /**
@@ -326,15 +326,32 @@ function refreshUI() {
 
         let runningTotal = totalVaults;
 
-        // Add net from today until start of this month
         if (viewMonthStart > today) {
+            // Looking at a FUTURE month: walk forward from today to the start of the view month
             let tempDate = new Date(today);
             while (tempDate < viewMonthStart) {
                 const { net } = getDayData(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), isLive);
                 runningTotal += net;
                 tempDate.setDate(tempDate.getDate() + 1);
             }
+        } else if (viewMonthStart < today) {
+            // Looking at a PAST month: find the earliest transaction to know how far back to go,
+            // then walk forward from that point up to (but not including) the first day of the view month
+            let earliest = new Date(viewMonthStart);
+            transactions.forEach(t => {
+                const parts = t.date.split('-');
+                const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                if (d < earliest) earliest = d;
+            });
+            // Walk from earliest month start up to viewMonthStart, accumulating net changes
+            let tempDate = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
+            while (tempDate < viewMonthStart) {
+                const { net } = getDayData(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), isLive);
+                runningTotal += net;
+                tempDate.setDate(tempDate.getDate() + 1);
+            }
         }
+        // If viewMonthStart === today (first of current month), runningTotal stays as totalVaults — correct.
 
         let html = '';
         let dayCounter = 1;
@@ -434,7 +451,7 @@ function openDayModal(dateKey, isLive) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = getLocalDateString(today);
-    
+
     const parts = dateKey.split('-');
 
     // Always fetch all items (isLive = false) to show complete list
@@ -451,7 +468,7 @@ function openDayModal(dateKey, isLive) {
 
         // Determine what buttons to show
         let actionButtons = '';
-        
+
         if (isLive) {
             // Live View: Show mark paid/unpaid button
             actionButtons = `
@@ -466,7 +483,7 @@ function openDayModal(dateKey, isLive) {
                 const skipButtonText = isSkipped ? 'INCLUDE' : 'SKIP';
                 const skipButtonClass = isSkipped ? 'status-paid' : 'status-pending';
                 const skipButtonTitle = isSkipped ? 'Include this occurrence in forecast' : 'Skip only this occurrence in forecast';
-                
+
                 actionButtons = `
                     <div style="display: flex; gap: 5px;">
                         <button class="status-pill ${skipButtonClass}" 
@@ -560,11 +577,11 @@ function toggleSkipOccurrence(dateKey, transactionId) {
     dayDataCache.clear();
     invalidateTransactionCache();
     refreshUI();
-    
+
     // Re-open the modal to show updated state
     const isLive = false; // Review Page
     openDayModal(dateKey, isLive);
-    
+
     console.log(`↪️ Toggled skip for transaction ${transactionId} on ${dateKey}: ${skippedMap[k] ? 'Skipped' : 'Included'}`);
 }
 
@@ -576,25 +593,25 @@ function deleteRecurringTransaction(transactionId) {
 
     const frequencyMap = {
         'weekly': 'weekly',
-        'biweekly': 'bi-weekly', 
+        'biweekly': 'bi-weekly',
         'monthly': 'monthly',
         'quarterly': 'quarterly'
     };
-    
+
     if (!confirm(`⚠️ WARNING: This is a ${frequencyMap[transactionToDelete.frequency]} recurring transaction.\n\nDeleting it will remove ALL future occurrences.\n\nDo you want to continue?`)) {
         return;
     }
 
     // Remove the transaction
     transactions = transactions.filter(t => t.id !== transactionId);
-    
+
     // Also remove any fulfillment and skip records for this transaction
     Object.keys(fulfilledMap).forEach(key => {
         if (key.endsWith(`_${transactionId}`)) {
             delete fulfilledMap[key];
         }
     });
-    
+
     Object.keys(skippedMap).forEach(key => {
         if (key.endsWith(`_${transactionId}`)) {
             delete skippedMap[key];
@@ -607,7 +624,7 @@ function deleteRecurringTransaction(transactionId) {
     refreshUI();
     renderTransactions(); // Refresh the transaction list
     closeDayModal();
-    
+
     console.log(`🗑️ Deleted recurring transaction: ${transactionToDelete.name} (ID: ${transactionId})`);
 }
 
@@ -623,7 +640,7 @@ function deleteTransactionFromModal(transactionId, dateKey) {
 
     // Remove the transaction
     transactions = transactions.filter(t => t.id !== transactionId);
-    
+
     // Also remove any fulfillment records for this transaction
     Object.keys(fulfilledMap).forEach(key => {
         if (key.endsWith(`_${transactionId}`)) {
@@ -637,7 +654,7 @@ function deleteTransactionFromModal(transactionId, dateKey) {
     refreshUI();
     renderTransactions(); // Refresh the transaction list
     closeDayModal();
-    
+
     console.log(`🗑️ Deleted transaction: ${transactionToDelete.name} (ID: ${transactionId})`);
 }
 
