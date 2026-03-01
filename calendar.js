@@ -481,6 +481,15 @@ function openDayModal(dateKey, isLive) {
     const titlePrefix = (dateKey === todayStr) ? "⭐ Today - " : "";
     document.getElementById('dayModalDate').innerText = titlePrefix + dateKey;
 
+    // Add "+ Add Transaction" button to modal header
+    const addBtnContainer = document.getElementById('dayModalAddBtn');
+    if (addBtnContainer) {
+        addBtnContainer.onclick = () => {
+            closeDayModal();
+            openTransFromCalendar(dateKey);
+        };
+    }
+
     document.getElementById('dayItemList').innerHTML = items.map(it => {
         const statusText = it.isPaid ? 'PAID' : 'MARK PAID';
         const statusClass = it.isPaid ? 'status-paid' : 'status-pending';
@@ -583,6 +592,16 @@ function toggleFulfill(dateKey, id) {
 
 function closeDayModal() {
     document.getElementById('dayModal').classList.remove('active');
+}
+
+// Open transaction modal from calendar with date pre-filled
+function openTransFromCalendar(dateKey) {
+    document.getElementById('transForm').reset();
+    document.getElementById('tEditId').value = '';
+    document.getElementById('tDate').value = dateKey;
+    document.getElementById('tCategory').value = '';
+    document.getElementById('transModal').classList.add('active');
+    setTimeout(() => document.getElementById('tName').focus(), 100);
 }
 
 // NEW FUNCTION: Toggle skip for a specific occurrence

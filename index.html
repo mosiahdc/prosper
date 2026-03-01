@@ -418,9 +418,14 @@
 
     <div class="modal-overlay" id="dayModal">
         <div class="modal-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <h3 id="dayModalDate" style="margin: 0;">Day Details</h3>
                 <button class="btn-ghost" onclick="closeDayModal()">✕</button>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <button id="dayModalAddBtn" class="btn-primary" style="width: 100%; padding: 10px; font-size: 0.9rem;">
+                    + Add Transaction
+                </button>
             </div>
             <div id="dayItemList"></div>
         </div>
