@@ -326,32 +326,21 @@ function refreshUI() {
 
         let runningTotal = totalVaults;
 
-        if (viewMonthStart > today) {
-            // Looking at a FUTURE month: walk forward from today to the start of the view month
-            let tempDate = new Date(today);
-            while (tempDate < viewMonthStart) {
-                const { net } = getDayData(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), isLive);
-                runningTotal += net;
-                tempDate.setDate(tempDate.getDate() + 1);
-            }
-        } else if (viewMonthStart < today) {
-            // Looking at a PAST month: find the earliest transaction to know how far back to go,
-            // then walk forward from that point up to (but not including) the first day of the view month
-            let earliest = new Date(viewMonthStart);
-            transactions.forEach(t => {
-                const parts = t.date.split('-');
-                const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                if (d < earliest) earliest = d;
-            });
-            // Walk from earliest month start up to viewMonthStart, accumulating net changes
-            let tempDate = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
-            while (tempDate < viewMonthStart) {
-                const { net } = getDayData(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), isLive);
-                runningTotal += net;
-                tempDate.setDate(tempDate.getDate() + 1);
-            }
+        // Always walk from the earliest known transaction month up to (not including)
+        // the first day of the viewed month, so balances carry over correctly
+        // across all months — past, present, and future.
+        let earliest = new Date(viewMonthStart);
+        transactions.forEach(t => {
+            const parts = t.date.split('-');
+            const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            if (d < earliest) earliest = d;
+        });
+        let tempDate = new Date(earliest.getFullYear(), earliest.getMonth(), 1);
+        while (tempDate < viewMonthStart) {
+            const { net } = getDayData(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate(), isLive);
+            runningTotal += net;
+            tempDate.setDate(tempDate.getDate() + 1);
         }
-        // If viewMonthStart === today (first of current month), runningTotal stays as totalVaults — correct.
 
         let html = '';
         let dayCounter = 1;
@@ -359,20 +348,51 @@ function refreshUI() {
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMo = new Date(year, month + 1, 0).getDate();
 
+        // Prev month info for leading overflow days
+        const prevYear = month === 0 ? year - 1 : year;
+        const prevMonth = month === 0 ? 11 : month - 1;
+        const daysInPrevMo = new Date(year, month, 0).getDate();
+
+        // Next month info for trailing overflow days
+        const nextYear = month === 11 ? year + 1 : year;
+        const nextMonth = month === 11 ? 0 : month + 1;
+        let nextMonthDay = 1;
+
         for (let i = 0; i < 6; i++) {
             let row = '<tr>';
             let weeklyChange = 0;
+            let weeklyChangeThisMonth = 0; // only current month days, for runningTotal
+            let overflowNet = 0; // net from overflow days only, for display total
 
             for (let j = 0; j < 7; j++) {
-                if (i === 0 && j < firstDay || dayCounter > daysInMo) {
-                    row += '<td></td>';
+                if (i === 0 && j < firstDay) {
+                    // Leading overflow: days from previous month 
+                    const overflowDay = daysInPrevMo - (firstDay - 1 - j);
+                    const { net, dateKey } = getDayData(prevYear, prevMonth, overflowDay, isLive);
+                    const isToday = dateKey === todayStr;
+                    weeklyChange += net; // include overflow in weekly +/- display
+                    // Leading overflow already included in carry-over walk, don't add to overflowNet
+                    row += `<td class="${isToday ? 'today-cell' : ''}" style="opacity:0.4;" onclick="openDayModal('${dateKey}', ${isLive})">
+                            <span class="day-num">${overflowDay}</span><br>
+                            ${net !== 0 ? `<span class="day-amount ${net > 0 ? 'amt-pos' : 'amt-neg'}">${Math.round(net)}</span>` : ''}
+                        </td>`;
+                } else if (dayCounter > daysInMo) {
+                    // Trailing overflow: days from next month 
+                    const { net, dateKey } = getDayData(nextYear, nextMonth, nextMonthDay, isLive);
+                    const isToday = dateKey === todayStr;
+                    weeklyChange += net; // include overflow in weekly +/- display
+                    overflowNet += net;
+                    row += `<td class="${isToday ? 'today-cell' : ''}" style="opacity:0.4;" onclick="openDayModal('${dateKey}', ${isLive})">
+                            <span class="day-num">${nextMonthDay}</span><br>
+                            ${net !== 0 ? `<span class="day-amount ${net > 0 ? 'amt-pos' : 'amt-neg'}">${Math.round(net)}</span>` : ''}
+                        </td>`;
+                    nextMonthDay++;
                 } else {
                     const { net, items, dateKey } = getDayData(year, month, dayCounter, isLive);
 
                     // Calculate monthly totals only for live view
                     if (isLive) {
                         items.forEach(it => {
-                            // Only count items that are not skipped for monthly totals
                             const isSkipped = skippedMap[`${dateKey}_${it.id}`];
                             if (!isSkipped) {
                                 if (it.type === 'income') monthlyIncome += it.amount;
@@ -382,10 +402,10 @@ function refreshUI() {
                     }
 
                     weeklyChange += net;
+                    weeklyChangeThisMonth += net;
                     const isToday = dateKey === todayStr;
 
-                    row += `
-                        <td class="${isToday ? 'today-cell' : ''}" onclick="openDayModal('${dateKey}', ${isLive})">
+                    row += `<td class="${isToday ? 'today-cell' : ''}" onclick="openDayModal('${dateKey}', ${isLive})">
                             <span class="day-num">${dayCounter}</span><br>
                             ${net !== 0 ? `<span class="day-amount ${net > 0 ? 'amt-pos' : 'amt-neg'}">${Math.round(net)}</span>` : ''}
                         </td>`;
@@ -393,8 +413,9 @@ function refreshUI() {
                 }
             }
 
-            runningTotal += weeklyChange;
-            row += `<td style="text-align:center">${Math.round(weeklyChange)}</td><td class="col-total">₱${Math.round(runningTotal).toLocaleString()}</td></tr>`;
+            runningTotal += weeklyChangeThisMonth; // only current month days keep running total accurate
+            const displayTotal = runningTotal + overflowNet; // show actual balance after overflow days too
+            row += `<td style="text-align:center">${Math.round(weeklyChange)}</td><td class="col-total">₱${Math.round(displayTotal).toLocaleString()}</td></tr>`;
             html += row;
 
             if (dayCounter > daysInMo) break;
