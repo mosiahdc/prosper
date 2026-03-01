@@ -85,15 +85,7 @@ main {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    /* Matches the page background */
     padding: 1rem 0;
-    z-index: 10;
-    /* Stays above the calendar grid */
-    border-bottom: 1px solid transparent;
-    /* Optional: transitions on scroll */
 }
 
 .card {

@@ -35,16 +35,13 @@ function renderTransactions() {
     // 1. Updated Filter Logic to handle Active vs Completed
     let filtered = transactions.filter(t => {
         // A transaction is "Finished" if:
-        // - It's One-time and the date is in the past
+        // - It's One-time, the date is in the past, AND it has been marked as paid
         // - OR it has an End Date and that end date is in the past
-        // - OR it's One-time and has been marked as paid (regardless of date)
-        const isOneTimePast = (t.frequency === 'none' && t.date < todayStr);
+        const isPaid = (t.frequency === 'none' && fulfilledMap[`${t.date}_${t.id}`]);
+        const isOneTimePastAndPaid = (t.frequency === 'none' && t.date < todayStr && isPaid);
         const isExpired = (t.endDate && t.endDate < todayStr);
 
-        // Check if this one-time transaction is marked as paid
-        const isPaid = (t.frequency === 'none' && fulfilledMap[`${t.date}_${t.id}`]);
-
-        const isFinished = isOneTimePast || isExpired || isPaid;
+        const isFinished = isOneTimePastAndPaid || isExpired;
 
         return transFilter === 'active' ? !isFinished : isFinished;
     });
@@ -62,18 +59,18 @@ function renderTransactions() {
 
     // Count active and completed transactions for the badges
     const activeCount = transactions.filter(t => {
-        const isOneTimePast = (t.frequency === 'none' && t.date < todayStr);
-        const isExpired = (t.endDate && t.endDate < todayStr);
         const isPaid = (t.frequency === 'none' && fulfilledMap[`${t.date}_${t.id}`]);
-        const isFinished = isOneTimePast || isExpired || isPaid;
+        const isOneTimePastAndPaid = (t.frequency === 'none' && t.date < todayStr && isPaid);
+        const isExpired = (t.endDate && t.endDate < todayStr);
+        const isFinished = isOneTimePastAndPaid || isExpired;
         return !isFinished;
     }).length;
 
     const completedCount = transactions.filter(t => {
-        const isOneTimePast = (t.frequency === 'none' && t.date < todayStr);
-        const isExpired = (t.endDate && t.endDate < todayStr);
         const isPaid = (t.frequency === 'none' && fulfilledMap[`${t.date}_${t.id}`]);
-        const isFinished = isOneTimePast || isExpired || isPaid;
+        const isOneTimePastAndPaid = (t.frequency === 'none' && t.date < todayStr && isPaid);
+        const isExpired = (t.endDate && t.endDate < todayStr);
+        const isFinished = isOneTimePastAndPaid || isExpired;
         return isFinished;
     }).length;
 

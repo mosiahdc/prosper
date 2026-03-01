@@ -709,35 +709,56 @@ function renderUpcomingSidebar() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const OVERDUE_DAYS = 90;
     const UPCOMING_DAYS = 5;
+    let overdue = [];
     let upcoming = [];
 
-    // Check only the next 5 days
+    if (!transactionIndex) invalidateTransactionCache();
+
+    // --- OVERDUE: scan backwards, bypass cache, read fulfilledMap directly ---
+    for (let i = 1; i <= OVERDUE_DAYS; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() - i);
+        checkDate.setHours(0, 0, 0, 0);
+        const checkTimestamp = checkDate.getTime();
+        const dateKey = getLocalDateString(checkDate);
+
+        for (const frequency in transactionIndex) {
+            for (const t of transactionIndex[frequency]) {
+                if (doesTransactionMatch(t, checkDate, checkTimestamp)) {
+                    const isPaid = !!fulfilledMap[`${dateKey}_${t.id}`];
+                    const isSkipped = !!skippedMap[`${dateKey}_${t.id}`];
+                    if (!isPaid && !isSkipped) {
+                        overdue.push({ ...t, dueDate: dateKey, isOverdue: true, isPaid, isSkipped });
+                    }
+                }
+            }
+        }
+    }
+    overdue.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+    // --- UPCOMING: today + next 5 days ---
     for (let i = 0; i <= UPCOMING_DAYS; i++) {
         const checkDate = new Date(today);
         checkDate.setDate(today.getDate() + i);
+        checkDate.setHours(0, 0, 0, 0);
+        const checkTimestamp = checkDate.getTime();
+        const dateKey = getLocalDateString(checkDate);
 
-        const { items, dateKey } = getDayData(
-            checkDate.getFullYear(),
-            checkDate.getMonth(),
-            checkDate.getDate(),
-            false
-        );
-
-        // Add unpaid and non-skipped items to upcoming list
-        items.forEach(item => {
-            if (!item.isPaid && !item.isSkipped) {
-                upcoming.push({ ...item, dueDate: dateKey });
+        for (const frequency in transactionIndex) {
+            for (const t of transactionIndex[frequency]) {
+                if (doesTransactionMatch(t, checkDate, checkTimestamp)) {
+                    const isPaid = !!fulfilledMap[`${dateKey}_${t.id}`];
+                    const isSkipped = !!skippedMap[`${dateKey}_${t.id}`];
+                    if (!isPaid && !isSkipped) {
+                        upcoming.push({ ...t, dueDate: dateKey, isOverdue: false, isPaid, isSkipped });
+                    }
+                }
             }
-        });
+        }
     }
 
-    if (upcoming.length === 0) {
-        listContainer.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 1rem; text-align: center; border: 1px dashed var(--border); border-radius: 8px;">All clear! No upcoming dues.</div>`;
-        return;
-    }
-
-    // Get frequency display names
     const frequencyMap = {
         'none': 'One-time',
         'weekly': 'Weekly',
@@ -746,12 +767,41 @@ function renderUpcomingSidebar() {
         'quarterly': 'Quarterly'
     };
 
-    listContainer.innerHTML = upcoming.map(item => `
-        <div class="card" style="padding: 12px; margin-bottom: 0; border-left: 4px solid ${item.type === 'income' ? 'var(--success)' : 'var(--primary)'};">
+    // Update sidebar title
+    const sidebarTitle = document.querySelector('#upcomingSidebar h3');
+    if (sidebarTitle) sidebarTitle.textContent = 'Dues & Overdue';
+
+    if (overdue.length === 0 && upcoming.length === 0) {
+        listContainer.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 1rem; text-align: center; border: 1px dashed var(--border); border-radius: 8px;">All clear! No upcoming dues.</div>`;
+        return;
+    }
+
+    let html = '';
+
+    if (overdue.length > 0) {
+        html += `<div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--danger); padding: 6px 4px 4px; letter-spacing: 0.5px;">⚠️ Overdue (${overdue.length})</div>`;
+        html += overdue.map(item => renderSidebarItem(item, frequencyMap)).join('');
+    }
+
+    if (upcoming.length > 0) {
+        html += `<div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--primary); padding: 6px 4px 4px; letter-spacing: 0.5px;">📅 Due Soon (${upcoming.length})</div>`;
+        html += upcoming.map(item => renderSidebarItem(item, frequencyMap)).join('');
+    }
+
+    listContainer.innerHTML = html;
+}
+
+function renderSidebarItem(item, frequencyMap) {
+    const borderColor = item.isOverdue ? 'var(--danger)' : (item.type === 'income' ? 'var(--success)' : 'var(--primary)');
+    const bgColor = item.isOverdue ? '#fff5f5' : 'white';
+    return `
+        <div class="card" style="padding: 12px; margin-bottom: 0; border-left: 4px solid ${borderColor}; background: ${bgColor};">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                     <div style="font-weight: 700; font-size: 0.9rem;">${item.name}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">${item.dueDate}</div>
+                    <div style="font-size: 0.75rem; color: ${item.isOverdue ? 'var(--danger)' : 'var(--text-muted)'}; font-weight: ${item.isOverdue ? '600' : '400'};">
+                        ${item.dueDate}${item.isOverdue ? ' · OVERDUE' : ''}
+                    </div>
                     <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">
                         ${frequencyMap[item.frequency] || item.frequency}
                         ${item.category ? ` • ${item.category.charAt(0).toUpperCase() + item.category.slice(1)}` : ''}
@@ -761,10 +811,10 @@ function renderUpcomingSidebar() {
                     ₱${item.amount.toLocaleString()}
                 </div>
             </div>
-            <button class="status-pill status-pending" style="width: 100%; margin-top: 10px; font-size: 0.6rem; padding: 4px;" 
+            <button class="status-pill status-pending" style="width: 100%; margin-top: 10px; font-size: 0.6rem; padding: 4px;"
                 onclick="toggleFulfill('${item.dueDate}', ${item.id})">
                 Mark Paid
             </button>
         </div>
-    `).join('');
+    `;
 }
