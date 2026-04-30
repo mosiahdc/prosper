@@ -219,16 +219,28 @@ function getDayData(year, month, day, isLive) {
                 const effectiveAmount = override ? override.amount : t.amount;
                 const effectiveName = override ? override.name : t.name;
 
+                // Support partial payment: fulfilledMap value may be { paidAmount, partial } or true
+                const paymentRecord = (isPaid && typeof isPaid === 'object') ? isPaid : null;
+                const isPartialPaid = !!(paymentRecord && paymentRecord.partial);
+                const isFullyPaid = !!(isPaid && !isPartialPaid);
+                const paidAmount = paymentRecord ? paymentRecord.paidAmount : (isFullyPaid ? effectiveAmount : 0);
+                const remainingAmount = effectiveAmount - paidAmount;
+
                 const val = (t.type === 'income' ? effectiveAmount : -effectiveAmount);
 
                 // Always add to items for display in modal (use effective values)
-                items.push({ ...t, name: effectiveName, amount: effectiveAmount, val, isPaid, isSkipped, hasOverride: !!override });
+                items.push({ ...t, name: effectiveName, amount: effectiveAmount, val, isPaid, isSkipped, hasOverride: !!override, isPartialPaid, isFullyPaid, paidAmount, remainingAmount });
 
                 // For net calculation: Live view ignores paid items, Review view ignores skipped items
                 if (isLive) {
                     // Live view: include everything except paid items
+                    // Live view: fully paid items excluded; partial payments reduce net by remaining only
                     if (!isPaid) {
                         net += val;
+                    } else if (isPartialPaid) {
+                        // Partially paid: only the remaining amount still affects the balance
+                        const remainingVal = t.type === 'income' ? remainingAmount : -remainingAmount;
+                        net += remainingVal;
                     }
                 } else {
                     // Review view: include everything except skipped items
@@ -497,8 +509,9 @@ function openDayModal(dateKey, isLive) {
     }
 
     document.getElementById('dayItemList').innerHTML = items.map(it => {
-        const statusText = it.isPaid ? 'PAID' : 'MARK PAID';
-        const statusClass = it.isPaid ? 'status-paid' : 'status-pending';
+        const isBill = it.category === 'bills';
+        const statusText = it.isFullyPaid ? 'PAID' : (it.isPartialPaid ? 'PARTIAL' : 'MARK PAID');
+        const statusClass = it.isFullyPaid ? 'status-paid' : (it.isPartialPaid ? 'status-partial' : 'status-pending');
         const isSkipped = it.isSkipped;
         const isRecurring = it.frequency !== 'none';
 
@@ -507,6 +520,9 @@ function openDayModal(dateKey, isLive) {
 
         if (isLive) {
             // Live View: Show edit + mark paid/unpaid button
+            const markPaidOnclick = isBill && !it.isFullyPaid
+                ? `openBillPaymentModal('${dateKey}', ${it.id}, ${it.amount}, ${it.paidAmount})`
+                : `toggleFulfill('${dateKey}', ${it.id})`;
             actionButtons = `
                 <div style="display: flex; gap: 5px; align-items: center;">
                     <button class="btn-ghost"
@@ -516,7 +532,7 @@ function openDayModal(dateKey, isLive) {
                         ✏️
                     </button>
                     <button class="status-pill ${statusClass}" 
-                            onclick="toggleFulfill('${dateKey}', ${it.id})">
+                            onclick="${markPaidOnclick}">
                         ${statusText}
                     </button>
                 </div>`;
@@ -568,8 +584,8 @@ function openDayModal(dateKey, isLive) {
             }
         }
 
-        // Apply strike-through style if skipped or paid
-        const textStyle = isSkipped || it.isPaid ? 'text-decoration: line-through; color: var(--text-muted); opacity: 0.7;' : '';
+        // Apply strike-through style only for fully paid or skipped
+        const textStyle = isSkipped || it.isFullyPaid ? 'text-decoration: line-through; color: var(--text-muted); opacity: 0.7;' : '';
 
         // Get frequency display name
         const frequencyMap = {
@@ -583,13 +599,23 @@ function openDayModal(dateKey, isLive) {
         // Get category display
         const categoryDisplay = it.category ? `Category: ${it.category.charAt(0).toUpperCase() + it.category.slice(1)}` : '';
 
+        // Partial payment info block
+        const partialInfo = it.isPartialPaid ? `
+            <div style="margin-top: 4px; padding: 5px 8px; background: #fff8e1; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                <div style="font-size: 0.7rem; color: #92400e; font-weight: 600;">
+                    Paid: ₱${it.paidAmount.toLocaleString()} &nbsp;|&nbsp;
+                    <span style="color: var(--danger);">Remaining: ₱${it.remainingAmount.toLocaleString()}</span>
+                </div>
+            </div>` : '';
+
         return `
             <div class="day-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">
-                <div>
+                <div style="flex: 1; margin-right: 8px;">
                     <div style="${textStyle}">
                         <strong>${it.name}</strong>
                         ${isSkipped ? ' <span style="color: var(--danger); font-size: 0.7rem;">(SKIPPED)</span>' : ''}
-                        ${it.isPaid ? ' <span style="color: var(--success); font-size: 0.7rem;">(PAID)</span>' : ''}
+                        ${it.isFullyPaid ? ' <span style="color: var(--success); font-size: 0.7rem;">(PAID)</span>' : ''}
+                        ${it.isPartialPaid ? ' <span style="color: #f59e0b; font-size: 0.7rem;">(PARTIAL)</span>' : ''}
                         ${it.hasOverride ? ' <span style="color: var(--primary, #3b82f6); font-size: 0.65rem; background: var(--primary-light, #eff6ff); padding: 1px 5px; border-radius: 4px;">edited</span>' : ''}
                     </div>
                     <small>₱${it.amount.toLocaleString()}</small>
@@ -598,6 +624,7 @@ function openDayModal(dateKey, isLive) {
                         ${isRecurring ? ' (Recurring)' : ''}
                         ${categoryDisplay ? `<br>${categoryDisplay}` : ''}
                     </small>
+                    ${partialInfo}
                 </div>
                 ${actionButtons}
             </div>
@@ -618,6 +645,242 @@ function toggleFulfill(dateKey, id) {
     refreshUI();
     openDayModal(dateKey, true);
 }
+
+// ============================================
+// BILL PAYMENT MODAL (full or partial)
+// ============================================
+
+/**
+ * Opens a payment modal for Bill-category transactions.
+ * Allows recording a full or partial payment amount.
+ */
+function openBillPaymentModal(dateKey, transactionId, totalAmount, alreadyPaidAmount) {
+    const existing = document.getElementById('billPaymentModal');
+    if (existing) existing.remove();
+
+    const t = transactions.find(x => x.id === transactionId);
+    if (!t) return;
+
+    const remainingDue = totalAmount - (alreadyPaidAmount || 0);
+    const hasPartialPayment = alreadyPaidAmount > 0;
+
+    const modal = document.createElement('div');
+    modal.id = 'billPaymentModal';
+    modal.style.cssText = `
+        position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 10001; padding: 1rem;
+    `;
+
+    modal.innerHTML = `
+        <div style="
+            background: var(--surface, #fff);
+            border-radius: 16px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 360px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">Mark Bill as Paid</h3>
+                    <div style="font-size: 0.75rem; color: var(--text-muted, #888); margin-top: 3px;">${t.name} · ${dateKey}</div>
+                </div>
+                <button onclick="closeBillPaymentModal()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--text-muted,#888);padding:4px;">✕</button>
+            </div>
+
+            <!-- Total amount -->
+            <div style="
+                background: var(--bg, #f9f9f9);
+                border-radius: 10px; padding: 0.75rem 1rem;
+                display: flex; justify-content: space-between;
+                margin-bottom: 1rem; border: 1px solid var(--border, #e0e0e0);
+            ">
+                <span style="font-size: 0.8rem; color: var(--text-muted,#888);">Total Bill</span>
+                <span style="font-weight: 700;">₱${totalAmount.toLocaleString()}</span>
+            </div>
+
+            ${hasPartialPayment ? `
+            <div style="
+                background: #fff8e1; border-radius: 10px; padding: 0.65rem 1rem;
+                display: flex; justify-content: space-between;
+                margin-bottom: 1rem; border: 1px solid #fde68a;
+            ">
+                <span style="font-size: 0.8rem; color: #92400e;">Already Paid</span>
+                <span style="font-weight: 700; color: #92400e;">₱${alreadyPaidAmount.toLocaleString()}</span>
+            </div>
+            <div style="
+                background: #fef2f2; border-radius: 10px; padding: 0.65rem 1rem;
+                display: flex; justify-content: space-between;
+                margin-bottom: 1rem; border: 1px solid #fecaca;
+            ">
+                <span style="font-size: 0.8rem; color: var(--danger,#ef4444);">Remaining Due</span>
+                <span style="font-weight: 700; color: var(--danger,#ef4444);">₱${remainingDue.toLocaleString()}</span>
+            </div>` : ''}
+
+            <!-- Payment type toggle -->
+            <div style="display: flex; gap: 8px; margin-bottom: 1rem;">
+                <button id="billPayFull" onclick="setBillPayType('full')" style="
+                    flex: 1; padding: 0.6rem; border-radius: 10px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+                    border: 2px solid var(--primary, #3b82f6);
+                    background: var(--primary, #3b82f6); color: #fff;
+                ">✅ Full Payment</button>
+                <button id="billPayPartial" onclick="setBillPayType('partial')" style="
+                    flex: 1; padding: 0.6rem; border-radius: 10px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+                    border: 2px solid var(--border, #e0e0e0);
+                    background: none; color: var(--text-muted, #888);
+                ">⚡ Partial</button>
+            </div>
+
+            <!-- Amount input (hidden for full payment) -->
+            <div id="billPartialInputWrap" style="display:none; margin-bottom: 1rem;">
+                <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted,#888); display:block; margin-bottom:4px;">
+                    AMOUNT PAID NOW (₱)
+                </label>
+                <input id="billPartialAmount" type="number" min="1" step="0.01"
+                    placeholder="e.g. ${Math.round(remainingDue / 2)}"
+                    max="${remainingDue}"
+                    style="
+                        width: 100%; box-sizing: border-box;
+                        padding: 0.65rem 0.75rem;
+                        border: 1.5px solid var(--border, #e0e0e0);
+                        border-radius: 10px; font-size: 1.05rem; font-weight: 700;
+                        background: var(--bg, #f9f9f9); color: var(--text-main, #222);
+                        outline: none;
+                    " oninput="updateBillRemainingPreview(${totalAmount}, ${alreadyPaidAmount || 0})" />
+                <div id="billRemainingPreview" style="
+                    margin-top: 6px; font-size: 0.78rem; color: var(--danger, #ef4444);
+                    font-weight: 600; padding: 0 2px;
+                "></div>
+            </div>
+
+            <div style="display:flex; gap:0.75rem; margin-top: 0.25rem;">
+                ${hasPartialPayment ? `
+                <button onclick="clearBillPayment('${dateKey}', ${transactionId})" style="
+                    flex: 1; padding: 0.65rem;
+                    border: 1.5px solid var(--danger, #ef4444);
+                    border-radius: 10px; background: none;
+                    cursor: pointer; font-size: 0.8rem;
+                    color: var(--danger, #ef4444);
+                ">↩ Clear</button>` : `
+                <button onclick="closeBillPaymentModal()" style="
+                    flex: 1; padding: 0.65rem;
+                    border: 1.5px solid var(--border, #e0e0e0);
+                    border-radius: 10px; background: none;
+                    cursor: pointer; font-size: 0.9rem;
+                    color: var(--text-muted, #888);
+                ">Cancel</button>`}
+                <button onclick="saveBillPayment('${dateKey}', ${transactionId}, ${totalAmount}, ${alreadyPaidAmount || 0})" style="
+                    flex: 2; padding: 0.65rem;
+                    border: none; border-radius: 10px;
+                    background: var(--primary, #3b82f6);
+                    color: #fff; cursor: pointer;
+                    font-size: 0.9rem; font-weight: 700;
+                ">Record Payment</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    // Default to full payment selected
+    window._billPayType = 'full';
+}
+
+function closeBillPaymentModal() {
+    const modal = document.getElementById('billPaymentModal');
+    if (modal) modal.remove();
+}
+
+function setBillPayType(type) {
+    window._billPayType = type;
+    const fullBtn = document.getElementById('billPayFull');
+    const partialBtn = document.getElementById('billPayPartial');
+    const inputWrap = document.getElementById('billPartialInputWrap');
+
+    if (type === 'full') {
+        fullBtn.style.background = 'var(--primary, #3b82f6)';
+        fullBtn.style.color = '#fff';
+        fullBtn.style.borderColor = 'var(--primary, #3b82f6)';
+        partialBtn.style.background = 'none';
+        partialBtn.style.color = 'var(--text-muted, #888)';
+        partialBtn.style.borderColor = 'var(--border, #e0e0e0)';
+        inputWrap.style.display = 'none';
+    } else {
+        partialBtn.style.background = 'var(--primary, #3b82f6)';
+        partialBtn.style.color = '#fff';
+        partialBtn.style.borderColor = 'var(--primary, #3b82f6)';
+        fullBtn.style.background = 'none';
+        fullBtn.style.color = 'var(--text-muted, #888)';
+        fullBtn.style.borderColor = 'var(--border, #e0e0e0)';
+        inputWrap.style.display = 'block';
+        setTimeout(() => {
+            const inp = document.getElementById('billPartialAmount');
+            if (inp) { inp.focus(); }
+        }, 50);
+    }
+}
+
+function updateBillRemainingPreview(totalAmount, alreadyPaid) {
+    const inp = document.getElementById('billPartialAmount');
+    const preview = document.getElementById('billRemainingPreview');
+    if (!inp || !preview) return;
+    const paying = parseFloat(inp.value) || 0;
+    const newTotal = alreadyPaid + paying;
+    const remaining = totalAmount - newTotal;
+    if (paying <= 0) {
+        preview.textContent = '';
+    } else if (remaining <= 0) {
+        preview.style.color = 'var(--success, #22c55e)';
+        preview.textContent = '✅ Fully covered!';
+    } else {
+        preview.style.color = 'var(--danger, #ef4444)';
+        preview.textContent = `Remaining after this payment: ₱${Math.max(0, remaining).toLocaleString()}`;
+    }
+}
+
+function saveBillPayment(dateKey, transactionId, totalAmount, alreadyPaid) {
+    const k = `${dateKey}_${transactionId}`;
+    const type = window._billPayType || 'full';
+
+    if (type === 'full') {
+        // Mark as fully paid
+        fulfilledMap[k] = { paidAmount: totalAmount, partial: false };
+    } else {
+        const inp = document.getElementById('billPartialAmount');
+        const paying = parseFloat(inp?.value);
+        if (!paying || paying <= 0) {
+            alert('Please enter a valid payment amount.');
+            return;
+        }
+        const newTotalPaid = alreadyPaid + paying;
+        if (newTotalPaid >= totalAmount) {
+            // Paying the rest — mark as fully paid
+            fulfilledMap[k] = { paidAmount: totalAmount, partial: false };
+        } else {
+            fulfilledMap[k] = { paidAmount: newTotalPaid, partial: true };
+        }
+    }
+
+    saveData();
+    dayDataCache.clear();
+    invalidateTransactionCache();
+    refreshUI();
+    closeBillPaymentModal();
+    openDayModal(dateKey, true);
+}
+
+function clearBillPayment(dateKey, transactionId) {
+    const k = `${dateKey}_${transactionId}`;
+    delete fulfilledMap[k];
+    saveData();
+    dayDataCache.clear();
+    invalidateTransactionCache();
+    refreshUI();
+    closeBillPaymentModal();
+    openDayModal(dateKey, true);
+}
+
+
 
 function closeDayModal() {
     document.getElementById('dayModal').classList.remove('active');
