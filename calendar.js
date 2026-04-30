@@ -213,10 +213,16 @@ function getDayData(year, month, day, isLive) {
             if (doesTransactionMatch(t, currentDate, currentTimestamp)) {
                 const isPaid = fulfilledMap[`${dateKey}_${t.id}`];
                 const isSkipped = skippedMap[`${dateKey}_${t.id}`]; // Check if this occurrence is skipped
-                const val = (t.type === 'income' ? t.amount : -t.amount);
 
-                // Always add to items for display in modal
-                items.push({ ...t, val, isPaid, isSkipped });
+                // Per-occurrence override: use overridden amount/name if set for this specific date
+                const override = (typeof overridesMap !== 'undefined') && overridesMap[`${dateKey}_${t.id}`];
+                const effectiveAmount = override ? override.amount : t.amount;
+                const effectiveName = override ? override.name : t.name;
+
+                const val = (t.type === 'income' ? effectiveAmount : -effectiveAmount);
+
+                // Always add to items for display in modal (use effective values)
+                items.push({ ...t, name: effectiveName, amount: effectiveAmount, val, isPaid, isSkipped, hasOverride: !!override });
 
                 // For net calculation: Live view ignores paid items, Review view ignores skipped items
                 if (isLive) {
@@ -584,6 +590,7 @@ function openDayModal(dateKey, isLive) {
                         <strong>${it.name}</strong>
                         ${isSkipped ? ' <span style="color: var(--danger); font-size: 0.7rem;">(SKIPPED)</span>' : ''}
                         ${it.isPaid ? ' <span style="color: var(--success); font-size: 0.7rem;">(PAID)</span>' : ''}
+                        ${it.hasOverride ? ' <span style="color: var(--primary, #3b82f6); font-size: 0.65rem; background: var(--primary-light, #eff6ff); padding: 1px 5px; border-radius: 4px;">edited</span>' : ''}
                     </div>
                     <small>₱${it.amount.toLocaleString()}</small>
                     <br><small style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase;">
@@ -680,6 +687,12 @@ function deleteRecurringTransaction(transactionId) {
         }
     });
 
+    Object.keys(overridesMap).forEach(key => {
+        if (key.endsWith(`_${transactionId}`)) {
+            delete overridesMap[key];
+        }
+    });
+
     saveData();
     dayDataCache.clear();
     invalidateTransactionCache();
@@ -721,12 +734,13 @@ function deleteTransactionFromModal(transactionId, dateKey) {
 }
 
 // ============================================
-// EDIT RECURRING TRANSACTION FROM CALENDAR
+// EDIT OCCURRENCE FROM CALENDAR (per-date override, does not affect other months)
 // ============================================
 
 /**
- * Opens a compact edit modal for any transaction from the calendar day modal.
- * Lets the user update the name, amount, and (for recurring) the monthly value.
+ * Opens a compact modal to edit a single occurrence of a transaction.
+ * For recurring transactions this only overrides that specific date —
+ * all other occurrences keep their original values.
  */
 function openEditRecurringModal(transactionId, dateKey) {
     const t = transactions.find(x => x.id === transactionId);
@@ -745,6 +759,11 @@ function openEditRecurringModal(transactionId, dateKey) {
         'quarterly': 'Quarterly'
     };
     const freqLabel = frequencyMap[t.frequency] || t.frequency;
+
+    // Use any existing override as the starting value, otherwise fall back to base
+    const existingOverride = (typeof overridesMap !== 'undefined') && overridesMap[`${dateKey}_${t.id}`];
+    const currentName = existingOverride ? existingOverride.name : t.name;
+    const currentAmount = existingOverride ? existingOverride.amount : t.amount;
 
     const modal = document.createElement('div');
     modal.id = 'editRecurringModal';
@@ -765,10 +784,9 @@ function openEditRecurringModal(transactionId, dateKey) {
         ">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
                 <div>
-                    <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">Edit Transaction</h3>
-                    <div style="font-size: 0.7rem; color: var(--text-muted, #888); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px;">
-                        ${freqLabel} · ${t.type}
-                        ${isRecurring ? ' · <strong style="color: var(--primary);">Recurring</strong>' : ''}
+                    <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">Edit This Occurrence</h3>
+                    <div style="font-size: 0.7rem; color: var(--text-muted, #888); margin-top: 2px; letter-spacing: 0.3px;">
+                        ${dateKey} · ${freqLabel} ${t.type}
                     </div>
                 </div>
                 <button onclick="closeEditRecurringModal()" style="
@@ -782,7 +800,7 @@ function openEditRecurringModal(transactionId, dateKey) {
                     <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted, #888); display: block; margin-bottom: 4px;">
                         NAME
                     </label>
-                    <input id="editRecName" type="text" value="${t.name}"
+                    <input id="editRecName" type="text" value="${currentName}"
                         style="
                             width: 100%; box-sizing: border-box;
                             padding: 0.6rem 0.75rem;
@@ -796,9 +814,9 @@ function openEditRecurringModal(transactionId, dateKey) {
 
                 <div>
                     <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted, #888); display: block; margin-bottom: 4px;">
-                        AMOUNT (₱)${isRecurring ? ' — updates all future occurrences' : ''}
+                        AMOUNT (₱) — this date only
                     </label>
-                    <input id="editRecAmount" type="number" min="0" step="0.01" value="${t.amount}"
+                    <input id="editRecAmount" type="number" min="0" step="0.01" value="${currentAmount}"
                         style="
                             width: 100%; box-sizing: border-box;
                             padding: 0.6rem 0.75rem;
@@ -810,33 +828,24 @@ function openEditRecurringModal(transactionId, dateKey) {
                         " />
                 </div>
 
-                <div>
-                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted, #888); display: block; margin-bottom: 4px;">
-                        TYPE
-                    </label>
-                    <select id="editRecType" style="
-                        width: 100%; box-sizing: border-box;
-                        padding: 0.6rem 0.75rem;
-                        border: 1.5px solid var(--border, #e0e0e0);
-                        border-radius: 10px; font-size: 0.9rem;
-                        background: var(--bg, #f9f9f9);
-                        color: var(--text-main, #222);
-                        outline: none;
-                    ">
-                        <option value="expense" ${t.type === 'expense' ? 'selected' : ''}>Expense</option>
-                        <option value="income" ${t.type === 'income' ? 'selected' : ''}>Income</option>
-                    </select>
-                </div>
-
                 ${isRecurring ? `
                 <div style="
                     background: var(--primary-light, #eff6ff);
                     border-radius: 10px; padding: 0.65rem 0.85rem;
                     font-size: 0.75rem; color: var(--primary, #3b82f6);
                     border: 1px solid var(--primary-border, #bfdbfe);
+                    line-height: 1.5;
                 ">
-                    ℹ️ This will update the <strong>${freqLabel.toLowerCase()}</strong> amount going forward across all calendar months.
+                    📌 Only <strong>${dateKey}</strong> will change. All other ${freqLabel.toLowerCase()} occurrences stay at ₱${t.amount.toLocaleString()}.
                 </div>` : ''}
+
+                ${existingOverride ? `
+                <button onclick="clearOccurrenceOverride(${transactionId}, '${dateKey}')" style="
+                    background: none; border: 1.5px solid var(--border, #e0e0e0);
+                    border-radius: 10px; padding: 0.5rem;
+                    font-size: 0.8rem; color: var(--text-muted, #888);
+                    cursor: pointer; text-align: center;
+                ">↩ Reset to original (₱${t.amount.toLocaleString()})</button>` : ''}
 
                 <div style="display: flex; gap: 0.75rem; margin-top: 0.25rem;">
                     <button onclick="closeEditRecurringModal()" style="
@@ -852,7 +861,7 @@ function openEditRecurringModal(transactionId, dateKey) {
                         background: var(--primary, #3b82f6);
                         color: #fff; cursor: pointer;
                         font-size: 0.9rem; font-weight: 700;
-                    ">Save Changes</button>
+                    ">Save This Date</button>
                 </div>
             </div>
         </div>
@@ -860,7 +869,7 @@ function openEditRecurringModal(transactionId, dateKey) {
 
     document.body.appendChild(modal);
 
-    // Focus the amount field for quick edits
+    // Focus and select the amount field for quick edits
     setTimeout(() => {
         const amtInput = document.getElementById('editRecAmount');
         if (amtInput) { amtInput.focus(); amtInput.select(); }
@@ -873,7 +882,8 @@ function closeEditRecurringModal() {
 }
 
 /**
- * Saves the edited transaction values (name, amount, type) and refreshes the calendar.
+ * Saves a per-occurrence override for just this dateKey.
+ * The base transaction is NOT modified — other months stay unchanged.
  */
 function saveEditRecurring(transactionId, dateKey) {
     const t = transactions.find(x => x.id === transactionId);
@@ -881,7 +891,6 @@ function saveEditRecurring(transactionId, dateKey) {
 
     const newName = (document.getElementById('editRecName')?.value || '').trim();
     const newAmount = parseFloat(document.getElementById('editRecAmount')?.value);
-    const newType = document.getElementById('editRecType')?.value;
 
     if (!newName) {
         alert('Please enter a name for the transaction.');
@@ -892,24 +901,44 @@ function saveEditRecurring(transactionId, dateKey) {
         return;
     }
 
-    // Apply changes to the transaction
-    t.name = newName;
-    t.amount = newAmount;
-    t.type = newType;
+    const k = `${dateKey}_${transactionId}`;
+
+    // If the values are identical to the base transaction, remove the override (no need to store)
+    if (newName === t.name && newAmount === t.amount) {
+        delete overridesMap[k];
+    } else {
+        overridesMap[k] = { name: newName, amount: newAmount };
+    }
 
     saveData();
+    dayDataCache.clear();
     invalidateTransactionCache();
     refreshUI();
-    renderTransactions();
 
     closeEditRecurringModal();
 
-    // Re-open the day modal so user can see the updated value
-    const parts = dateKey.split('-');
-    const isLive = document.getElementById('liveCalBody') !== null;
-    openDayModal(dateKey, isLive);
+    // Re-open the day modal so user sees the updated occurrence
+    openDayModal(dateKey, false);
 
-    console.log(`✏️ Updated transaction: "${t.name}" — ₱${t.amount} (${t.frequency})`);
+    console.log(`✏️ Override saved for transaction ${transactionId} on ${dateKey}: ₱${newAmount} "${newName}"`);
+}
+
+/**
+ * Removes the per-occurrence override, restoring the base transaction value for this date.
+ */
+function clearOccurrenceOverride(transactionId, dateKey) {
+    const k = `${dateKey}_${transactionId}`;
+    delete overridesMap[k];
+
+    saveData();
+    dayDataCache.clear();
+    invalidateTransactionCache();
+    refreshUI();
+
+    closeEditRecurringModal();
+    openDayModal(dateKey, false);
+
+    console.log(`↩ Override cleared for transaction ${transactionId} on ${dateKey}`);
 }
 
 

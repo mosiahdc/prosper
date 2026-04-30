@@ -6,6 +6,7 @@ let jars = JSON.parse(localStorage.getItem('jarsData')) || [];
 let transactions = JSON.parse(localStorage.getItem('moneyData')) || [];
 let fulfilledMap = JSON.parse(localStorage.getItem('fulfilledData')) || {};
 let skippedMap = JSON.parse(localStorage.getItem('skippedData')) || {};
+let overridesMap = JSON.parse(localStorage.getItem('overridesData')) || {};
 let vaultOrder = JSON.parse(localStorage.getItem('vaultOrder')) || [];
 let jarOrder = JSON.parse(localStorage.getItem('jarOrder')) || [];
 let currentViewDate = new Date(); currentViewDate.setDate(1);
@@ -34,6 +35,7 @@ function saveData() {
     localStorage.setItem('moneyData', JSON.stringify(transactions));
     localStorage.setItem('fulfilledData', JSON.stringify(fulfilledMap));
     localStorage.setItem('skippedData', JSON.stringify(skippedMap));
+    localStorage.setItem('overridesData', JSON.stringify(overridesMap));
     localStorage.setItem('vaultsData', JSON.stringify(vaults));
     localStorage.setItem('jarsData', JSON.stringify(jars));
     localStorage.setItem('vaultOrder', JSON.stringify(vaultOrder));
@@ -56,6 +58,7 @@ function exportData() {
         transactions,
         fulfilledMap,
         skippedMap,
+        overridesMap,
         vaultOrder,
         jarOrder,
         categoryCollapsedState: categoryCollapsedState || {}
@@ -98,6 +101,7 @@ function importData(event) {
             if (importedData.transactions) transactions = importedData.transactions;
             if (importedData.fulfilledMap) fulfilledMap = importedData.fulfilledMap;
             if (importedData.skippedMap) skippedMap = importedData.skippedMap;
+            if (importedData.overridesMap) overridesMap = importedData.overridesMap;
             if (importedData.vaultOrder) vaultOrder = importedData.vaultOrder;
             if (importedData.jarOrder) jarOrder = importedData.jarOrder;
             if (importedData.categoryCollapsedState) categoryCollapsedState = importedData.categoryCollapsedState;
@@ -188,6 +192,7 @@ function clearAllData() {
     transactions = [];
     fulfilledMap = {};
     skippedMap = {};
+    overridesMap = {};
     vaultOrder = [];
     jarOrder = [];
     categoryCollapsedState = {};
