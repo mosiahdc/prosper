@@ -500,12 +500,20 @@ function openDayModal(dateKey, isLive) {
         let actionButtons = '';
 
         if (isLive) {
-            // Live View: Show mark paid/unpaid button
+            // Live View: Show edit + mark paid/unpaid button
             actionButtons = `
-                <button class="status-pill ${statusClass}" 
-                        onclick="toggleFulfill('${dateKey}', ${it.id})">
-                    ${statusText}
-                </button>`;
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <button class="btn-ghost"
+                            onclick="openEditRecurringModal(${it.id}, '${dateKey}')"
+                            title="Edit this transaction"
+                            style="font-size: 0.65rem; padding: 6px 8px; color: var(--primary);">
+                        ✏️
+                    </button>
+                    <button class="status-pill ${statusClass}" 
+                            onclick="toggleFulfill('${dateKey}', ${it.id})">
+                        ${statusText}
+                    </button>
+                </div>`;
         } else {
             // Review View: Show different options based on transaction type
             if (isRecurring) {
@@ -515,7 +523,13 @@ function openDayModal(dateKey, isLive) {
                 const skipButtonTitle = isSkipped ? 'Include this occurrence in forecast' : 'Skip only this occurrence in forecast';
 
                 actionButtons = `
-                    <div style="display: flex; gap: 5px;">
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <button class="btn-ghost"
+                                onclick="openEditRecurringModal(${it.id}, '${dateKey}')"
+                                title="Edit this recurring transaction"
+                                style="font-size: 0.65rem; padding: 6px 8px; color: var(--primary);">
+                            ✏️
+                        </button>
                         <button class="status-pill ${skipButtonClass}" 
                                 onclick="toggleSkipOccurrence('${dateKey}', ${it.id})"
                                 title="${skipButtonTitle}"
@@ -530,13 +544,21 @@ function openDayModal(dateKey, isLive) {
                         </button>
                     </div>`;
             } else {
-                // For one-time transactions: show delete button
+                // For one-time transactions: show edit + delete button
                 actionButtons = `
-                    <button class="btn-ghost" 
-                            onclick="deleteTransactionFromModal(${it.id}, '${dateKey}')"
-                            style="color: var(--danger); font-size: 0.7rem; padding: 4px 8px;">
-                        ✕ Delete
-                    </button>`;
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <button class="btn-ghost"
+                                onclick="openEditRecurringModal(${it.id}, '${dateKey}')"
+                                title="Edit this transaction"
+                                style="font-size: 0.65rem; padding: 6px 8px; color: var(--primary);">
+                            ✏️
+                        </button>
+                        <button class="btn-ghost" 
+                                onclick="deleteTransactionFromModal(${it.id}, '${dateKey}')"
+                                style="color: var(--danger); font-size: 0.7rem; padding: 4px 8px;">
+                            ✕ Delete
+                        </button>
+                    </div>`;
             }
         }
 
@@ -699,8 +721,198 @@ function deleteTransactionFromModal(transactionId, dateKey) {
 }
 
 // ============================================
-// UPCOMING SIDEBAR (optimized)
+// EDIT RECURRING TRANSACTION FROM CALENDAR
 // ============================================
+
+/**
+ * Opens a compact edit modal for any transaction from the calendar day modal.
+ * Lets the user update the name, amount, and (for recurring) the monthly value.
+ */
+function openEditRecurringModal(transactionId, dateKey) {
+    const t = transactions.find(x => x.id === transactionId);
+    if (!t) return;
+
+    // Remove existing modal if present
+    const existing = document.getElementById('editRecurringModal');
+    if (existing) existing.remove();
+
+    const isRecurring = t.frequency !== 'none';
+    const frequencyMap = {
+        'none': 'One-time',
+        'weekly': 'Weekly',
+        'biweekly': 'Bi-weekly',
+        'monthly': 'Monthly',
+        'quarterly': 'Quarterly'
+    };
+    const freqLabel = frequencyMap[t.frequency] || t.frequency;
+
+    const modal = document.createElement('div');
+    modal.id = 'editRecurringModal';
+    modal.style.cssText = `
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 10000; padding: 1rem;
+    `;
+
+    modal.innerHTML = `
+        <div style="
+            background: var(--surface, #fff);
+            border-radius: 16px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">Edit Transaction</h3>
+                    <div style="font-size: 0.7rem; color: var(--text-muted, #888); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        ${freqLabel} · ${t.type}
+                        ${isRecurring ? ' · <strong style="color: var(--primary);">Recurring</strong>' : ''}
+                    </div>
+                </div>
+                <button onclick="closeEditRecurringModal()" style="
+                    background: none; border: none; cursor: pointer;
+                    font-size: 1.2rem; color: var(--text-muted, #888); padding: 4px;
+                ">✕</button>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted, #888); display: block; margin-bottom: 4px;">
+                        NAME
+                    </label>
+                    <input id="editRecName" type="text" value="${t.name}"
+                        style="
+                            width: 100%; box-sizing: border-box;
+                            padding: 0.6rem 0.75rem;
+                            border: 1.5px solid var(--border, #e0e0e0);
+                            border-radius: 10px; font-size: 0.95rem;
+                            background: var(--bg, #f9f9f9);
+                            color: var(--text-main, #222);
+                            outline: none;
+                        " />
+                </div>
+
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted, #888); display: block; margin-bottom: 4px;">
+                        AMOUNT (₱)${isRecurring ? ' — updates all future occurrences' : ''}
+                    </label>
+                    <input id="editRecAmount" type="number" min="0" step="0.01" value="${t.amount}"
+                        style="
+                            width: 100%; box-sizing: border-box;
+                            padding: 0.6rem 0.75rem;
+                            border: 1.5px solid var(--border, #e0e0e0);
+                            border-radius: 10px; font-size: 1.1rem; font-weight: 700;
+                            background: var(--bg, #f9f9f9);
+                            color: var(--text-main, #222);
+                            outline: none;
+                        " />
+                </div>
+
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted, #888); display: block; margin-bottom: 4px;">
+                        TYPE
+                    </label>
+                    <select id="editRecType" style="
+                        width: 100%; box-sizing: border-box;
+                        padding: 0.6rem 0.75rem;
+                        border: 1.5px solid var(--border, #e0e0e0);
+                        border-radius: 10px; font-size: 0.9rem;
+                        background: var(--bg, #f9f9f9);
+                        color: var(--text-main, #222);
+                        outline: none;
+                    ">
+                        <option value="expense" ${t.type === 'expense' ? 'selected' : ''}>Expense</option>
+                        <option value="income" ${t.type === 'income' ? 'selected' : ''}>Income</option>
+                    </select>
+                </div>
+
+                ${isRecurring ? `
+                <div style="
+                    background: var(--primary-light, #eff6ff);
+                    border-radius: 10px; padding: 0.65rem 0.85rem;
+                    font-size: 0.75rem; color: var(--primary, #3b82f6);
+                    border: 1px solid var(--primary-border, #bfdbfe);
+                ">
+                    ℹ️ This will update the <strong>${freqLabel.toLowerCase()}</strong> amount going forward across all calendar months.
+                </div>` : ''}
+
+                <div style="display: flex; gap: 0.75rem; margin-top: 0.25rem;">
+                    <button onclick="closeEditRecurringModal()" style="
+                        flex: 1; padding: 0.65rem;
+                        border: 1.5px solid var(--border, #e0e0e0);
+                        border-radius: 10px; background: none;
+                        cursor: pointer; font-size: 0.9rem;
+                        color: var(--text-muted, #888);
+                    ">Cancel</button>
+                    <button onclick="saveEditRecurring(${transactionId}, '${dateKey}')" style="
+                        flex: 2; padding: 0.65rem;
+                        border: none; border-radius: 10px;
+                        background: var(--primary, #3b82f6);
+                        color: #fff; cursor: pointer;
+                        font-size: 0.9rem; font-weight: 700;
+                    ">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Focus the amount field for quick edits
+    setTimeout(() => {
+        const amtInput = document.getElementById('editRecAmount');
+        if (amtInput) { amtInput.focus(); amtInput.select(); }
+    }, 80);
+}
+
+function closeEditRecurringModal() {
+    const modal = document.getElementById('editRecurringModal');
+    if (modal) modal.remove();
+}
+
+/**
+ * Saves the edited transaction values (name, amount, type) and refreshes the calendar.
+ */
+function saveEditRecurring(transactionId, dateKey) {
+    const t = transactions.find(x => x.id === transactionId);
+    if (!t) return;
+
+    const newName = (document.getElementById('editRecName')?.value || '').trim();
+    const newAmount = parseFloat(document.getElementById('editRecAmount')?.value);
+    const newType = document.getElementById('editRecType')?.value;
+
+    if (!newName) {
+        alert('Please enter a name for the transaction.');
+        return;
+    }
+    if (isNaN(newAmount) || newAmount < 0) {
+        alert('Please enter a valid amount.');
+        return;
+    }
+
+    // Apply changes to the transaction
+    t.name = newName;
+    t.amount = newAmount;
+    t.type = newType;
+
+    saveData();
+    invalidateTransactionCache();
+    refreshUI();
+    renderTransactions();
+
+    closeEditRecurringModal();
+
+    // Re-open the day modal so user can see the updated value
+    const parts = dateKey.split('-');
+    const isLive = document.getElementById('liveCalBody') !== null;
+    openDayModal(dateKey, isLive);
+
+    console.log(`✏️ Updated transaction: "${t.name}" — ₱${t.amount} (${t.frequency})`);
+}
+
+
 
 function renderUpcomingSidebar() {
     const listContainer = document.getElementById('upcomingList');
