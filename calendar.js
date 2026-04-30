@@ -509,7 +509,6 @@ function openDayModal(dateKey, isLive) {
     }
 
     document.getElementById('dayItemList').innerHTML = items.map(it => {
-        const isBill = it.category === 'bills';
         const statusText = it.isFullyPaid ? 'PAID' : (it.isPartialPaid ? 'PARTIAL' : 'MARK PAID');
         const statusClass = it.isFullyPaid ? 'status-paid' : (it.isPartialPaid ? 'status-partial' : 'status-pending');
         const isSkipped = it.isSkipped;
@@ -520,7 +519,7 @@ function openDayModal(dateKey, isLive) {
 
         if (isLive) {
             // Live View: Show edit + mark paid/unpaid button
-            const markPaidOnclick = isBill && !it.isFullyPaid
+            const markPaidOnclick = !it.isFullyPaid
                 ? `openBillPaymentModal('${dateKey}', ${it.id}, ${it.amount}, ${it.paidAmount})`
                 : `toggleFulfill('${dateKey}', ${it.id})`;
             actionButtons = `
@@ -683,7 +682,7 @@ function openBillPaymentModal(dateKey, transactionId, totalAmount, alreadyPaidAm
         ">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem;">
                 <div>
-                    <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">Mark Bill as Paid</h3>
+                    <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">Mark as Paid</h3>
                     <div style="font-size: 0.75rem; color: var(--text-muted, #888); margin-top: 3px;">${t.name} · ${dateKey}</div>
                 </div>
                 <button onclick="closeBillPaymentModal()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--text-muted,#888);padding:4px;">✕</button>
