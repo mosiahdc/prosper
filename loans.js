@@ -1,145 +1,151 @@
 /**
  * LOANS.JS — Loan tracker derived from loan-category transactions
  *
- * No separate data store. Reads all transactions where category === 'loan',
- * groups by name, and computes remaining balance from payment records in fulfilledMap.
+ * Model:
+ *   - Each transaction with category === 'loan' is one loan.
+ *   - amount     = per-installment amount (or full amount for one-time)
+ *   - date       = start / first installment date
+ *   - endDate    = final installment date (used to compute total installments)
+ *   - frequency  = how often (monthly, weekly, etc.)
  *
- * Each unique loan name becomes one loan card.
- * Remaining = sum of amounts across all occurrences - total payments recorded via fulfilledMap.
+ *   Total Principal  = amount × totalInstallments
+ *   Paid Installments = count of fulfilledMap entries for this transaction
+ *   Total Paid       = sum of actual paidAmount values from fulfilledMap
+ *   Remaining        = Total Principal − Total Paid
  */
 
 // ============================================
 // CORE: Build loan summaries from transactions
 // ============================================
 
-/**
- * Returns an array of loan summary objects, one per unique loan name.
- * Each entry:
- *   { name, totalOwed, totalPaid, remaining, pctPaid, occurrences[] }
- *
- * occurrences: all dated instances (past + future) from calendar data so we can
- * also count payments recorded per-date in fulfilledMap.
- */
 function getLoanSummaries() {
     const loanTransactions = transactions.filter(t =>
         t.category === 'loan' && t.type === 'expense'
     );
-
     if (!loanTransactions.length) return [];
 
-    // Group by name (case-insensitive key, display original casing)
-    const grouped = {};
-    loanTransactions.forEach(t => {
-        const key = t.name.trim().toLowerCase();
-        if (!grouped[key]) {
-            grouped[key] = { displayName: t.name.trim(), items: [] };
-        }
-        grouped[key].items.push(t);
-    });
+    const summaries = loanTransactions.map(t => {
+        // --- Compute all installment dates (start → end, or start → today if no endDate) ---
+        const allDates = getAllInstallmentDates(t);   // every scheduled date
+        const pastDates = getPastInstallmentDates(t);  // dates up to today
+        const totalInstallments = allDates.length;
+        const pastInstallments = pastDates.length;
 
-    const summaries = [];
-
-    Object.values(grouped).forEach(({ displayName, items }) => {
-        // Total owed = sum of amounts across all transaction items (base amount × recurrence is
-        // handled by looking at all fulfilledMap keys that match this transaction's id)
-        let totalOwed = 0;
+        // --- Tally payments from fulfilledMap ---
+        let paidInstallments = 0;
         let totalPaid = 0;
         const paymentHistory = [];
 
-        items.forEach(t => {
-            // For one-time loans: amount is the full loan amount
-            // For recurring loans: amount × all occurrences that have been touched
-            // Strategy: scan fulfilledMap for keys ending in _<t.id>
-            const matchingKeys = Object.keys(fulfilledMap).filter(k => k.endsWith(`_${t.id}`));
-
-            if (t.frequency === 'none') {
-                // One-time loan
-                totalOwed += t.amount;
-
-                matchingKeys.forEach(k => {
-                    const record = fulfilledMap[k];
-                    const paid = typeof record === 'object' ? (record.paidAmount || 0) : t.amount;
-                    totalPaid += paid;
-                    const dateKey = k.replace(`_${t.id}`, '');
-                    paymentHistory.push({ dateKey, paid, total: t.amount, transactionId: t.id });
-                });
-            } else {
-                // Recurring loan (e.g. monthly amortisation)
-                // totalOwed = base amount per occurrence. We count how many occurrences exist
-                // by looking at all calendar months from the transaction's startDate until today
-                const occurrenceDates = getRecurringOccurrenceDates(t);
-                const occurrenceCount = occurrenceDates.length;
-                totalOwed += t.amount * occurrenceCount;
-
-                matchingKeys.forEach(k => {
-                    const record = fulfilledMap[k];
-                    const paid = typeof record === 'object' ? (record.paidAmount || 0) : t.amount;
-                    totalPaid += paid;
-                    const dateKey = k.replace(`_${t.id}`, '');
-                    paymentHistory.push({ dateKey, paid, total: t.amount, transactionId: t.id });
-                });
+        allDates.forEach(dateKey => {
+            const k = `${dateKey}_${t.id}`;
+            const record = fulfilledMap[k];
+            if (record) {
+                paidInstallments++;
+                const paid = typeof record === 'object' ? (record.paidAmount || t.amount) : t.amount;
+                totalPaid += paid;
+                paymentHistory.push({ dateKey, paid });
             }
         });
 
-        const remaining = Math.max(0, totalOwed - totalPaid);
-        const pctPaid = totalOwed > 0 ? Math.min(100, (totalPaid / totalOwed) * 100) : 0;
+        const totalPrincipal = t.amount * totalInstallments;
+        const remaining = Math.max(0, totalPrincipal - totalPaid);
+        const pctPaid = totalPrincipal > 0 ? Math.min(100, (totalPaid / totalPrincipal) * 100) : 0;
 
         // Sort payment history newest first
         paymentHistory.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
 
-        summaries.push({
-            displayName,
-            totalOwed,
+        return {
+            transaction: t,
+            displayName: t.name.trim(),
+            amountPerInstallment: t.amount,
+            totalInstallments,
+            pastInstallments,
+            paidInstallments,
+            totalPrincipal,
             totalPaid,
             remaining,
             pctPaid,
             paymentHistory,
-            transactions: items,
-        });
+            isFullyPaid: remaining === 0 && totalPaid > 0,
+        };
     });
 
-    // Sort: most remaining balance first
-    summaries.sort((a, b) => b.remaining - a.remaining);
+    // Sort: unpaid first (by remaining desc), then paid-off at the bottom
+    summaries.sort((a, b) => {
+        if (a.isFullyPaid !== b.isFullyPaid) return a.isFullyPaid ? 1 : -1;
+        return b.remaining - a.remaining;
+    });
 
     return summaries;
 }
 
 /**
- * Returns an array of dateKey strings ("YYYY-MM-DD") for all past + current
- * occurrences of a recurring transaction, from its start up to today.
+ * All scheduled installment dates from start → endDate (inclusive).
+ * If no endDate, returns all dates from start up to today.
  */
-function getRecurringOccurrenceDates(t) {
+function getAllInstallmentDates(t) {
+    if (!t.date) return [];
+
+    const endLimit = t.endDate
+        ? new Date(t.endDate + 'T00:00:00')
+        : (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+
     const dates = [];
-    if (!t.date) return dates;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     let cursor = new Date(t.date + 'T00:00:00');
-    const maxIterations = 600; // safety cap
     let count = 0;
+    const MAX = 600;
 
-    while (cursor <= today && count < maxIterations) {
+    while (cursor <= endLimit && count < MAX) {
         dates.push(cursor.toISOString().split('T')[0]);
-
-        // Advance by frequency
-        const next = new Date(cursor);
-        switch (t.frequency) {
-            case 'weekly': next.setDate(next.getDate() + 7); break;
-            case 'biweekly': next.setDate(next.getDate() + 14); break;
-            case 'monthly': next.setMonth(next.getMonth() + 1); break;
-            case 'quarterly': next.setMonth(next.getMonth() + 3); break;
-            default: next.setFullYear(9999); break; // stop
-        }
-        cursor = next;
+        cursor = nextDate(cursor, t.frequency);
         count++;
     }
 
     return dates;
 }
 
+/**
+ * Installment dates from start → today (for "due so far" display).
+ */
+function getPastInstallmentDates(t) {
+    if (!t.date) return [];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dates = [];
+    let cursor = new Date(t.date + 'T00:00:00');
+    let count = 0;
+    const MAX = 600;
+
+    // Also respect endDate as a hard stop
+    const endLimit = t.endDate
+        ? new Date(Math.min(today, new Date(t.endDate + 'T00:00:00')))
+        : today;
+
+    while (cursor <= endLimit && count < MAX) {
+        dates.push(cursor.toISOString().split('T')[0]);
+        cursor = nextDate(cursor, t.frequency);
+        count++;
+    }
+
+    return dates;
+}
+
+function nextDate(date, frequency) {
+    const d = new Date(date);
+    switch (frequency) {
+        case 'weekly': d.setDate(d.getDate() + 7); break;
+        case 'biweekly': d.setDate(d.getDate() + 14); break;
+        case 'monthly': d.setMonth(d.getMonth() + 1); break;
+        case 'quarterly': d.setMonth(d.getMonth() + 3); break;
+        default: d.setFullYear(9999); break; // one-time: stop immediately
+    }
+    return d;
+}
+
 // ============================================
-// RENDER: Loan cards in #loanContainer
+// RENDER
 // ============================================
 
 function renderLoans() {
@@ -150,20 +156,15 @@ function renderLoans() {
 
     const summaries = getLoanSummaries();
 
-    // Update header total
     const grandTotal = summaries.reduce((s, l) => s + l.remaining, 0);
     if (totalDisp) {
         totalDisp.innerText = `₱${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
     }
-
-    // Hide section if no loan transactions exist
-    if (section) {
-        section.style.display = summaries.length ? '' : 'none';
-    }
+    if (section) section.style.display = summaries.length ? '' : 'none';
 
     if (!summaries.length) {
         container.innerHTML = `
-            <p style="color: var(--text-muted); font-size: 0.9rem; padding: 1rem 0;">
+            <p style="color:var(--text-muted); font-size:0.9rem; padding:1rem 0;">
                 No loan transactions found. Add a transaction with category <strong>Loan</strong> to track it here.
             </p>`;
         return;
@@ -173,91 +174,110 @@ function renderLoans() {
 }
 
 function renderLoanCard(loan) {
-    const isFullyPaid = loan.remaining === 0 && loan.totalPaid > 0;
-    const barColor = isFullyPaid ? 'var(--success)' : 'var(--danger)';
+    const barColor = loan.isFullyPaid ? 'var(--success)' : 'var(--danger)';
     const pct = Math.round(loan.pctPaid);
+    const t = loan.transaction;
 
-    // Latest payment line
+    // Installment progress label  e.g. "5 / 12 installments paid"
+    const installmentLabel = loan.totalInstallments > 1
+        ? `${loan.paidInstallments} / ${loan.totalInstallments} installments paid`
+        : (loan.isFullyPaid ? 'Paid' : 'Unpaid');
+
+    // Overdue: past installments that are not yet paid
+    const overdue = Math.max(0, loan.pastInstallments - loan.paidInstallments);
+    const overdueTag = overdue > 0
+        ? `<span style="background:#fef2f2; color:var(--danger); font-size:0.65rem; font-weight:700;
+                        padding:2px 7px; border-radius:99px; margin-left:6px;">
+               ${overdue} overdue
+           </span>`
+        : '';
+
     const latestPayment = loan.paymentHistory[0];
     const latestLine = latestPayment
-        ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">
-               Last payment: ₱${latestPayment.paid.toLocaleString()} on ${latestPayment.dateKey}
-           </div>`
-        : `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:4px;">No payments recorded yet</div>`;
+        ? `Last payment: ₱${latestPayment.paid.toLocaleString()} on ${latestPayment.dateKey}`
+        : 'No payments recorded yet';
+
+    const endDateLine = t.endDate
+        ? `<span style="color:var(--text-muted); font-size:0.7rem;">Until ${t.endDate}</span>`
+        : '';
+
+    const histId = `lh_${sanitizeId(loan.displayName + '_' + t.id)}`;
 
     return `
         <div class="card" style="
-            padding: 1.5rem;
-            border-left: 4px solid ${barColor};
-            position: relative;
-            ${isFullyPaid ? 'opacity: 0.7;' : ''}
+            padding:1.5rem;
+            border-left:4px solid ${barColor};
+            ${loan.isFullyPaid ? 'opacity:0.72;' : ''}
         ">
-            <!-- Header row -->
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+            <!-- Header -->
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
                 <div>
-                    <div style="color:var(--text-muted); font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+                    <div style="color:var(--text-muted); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
                         🏦 Loan
                     </div>
-                    <div style="font-size:1.1rem; font-weight:800; margin-top:3px;">
+                    <div style="font-size:1.05rem; font-weight:800; margin-top:3px; display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
                         ${loan.displayName}
-                        ${isFullyPaid ? '<span style="font-size:0.75rem; color:var(--success); margin-left:6px;">✅ PAID OFF</span>' : ''}
+                        ${loan.isFullyPaid ? '<span style="font-size:0.7rem; color:var(--success); background:#f0fdf4; padding:2px 7px; border-radius:99px;">✅ PAID OFF</span>' : ''}
+                        ${overdueTag}
                     </div>
+                    ${endDateLine}
                 </div>
-                <button class="btn-ghost" style="font-size:0.75rem; padding:4px 10px;"
-                        onclick="toggleLoanHistory('lh_${sanitizeId(loan.displayName)}')">
+                <button class="btn-ghost" style="font-size:0.72rem; padding:4px 10px; white-space:nowrap;"
+                        onclick="toggleLoanHistory('${histId}')">
                     History
                 </button>
             </div>
 
-            <!-- Amounts row -->
-            <div style="display:flex; gap:1.5rem; margin-bottom:14px; flex-wrap:wrap;">
+            <!-- Amounts -->
+            <div style="display:flex; gap:1.25rem; margin-bottom:12px; flex-wrap:wrap;">
                 <div>
-                    <div style="font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Total Owed</div>
-                    <div style="font-size:1rem; font-weight:700;">₱${loan.totalOwed.toLocaleString()}</div>
+                    <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Per Installment</div>
+                    <div style="font-size:0.9rem; font-weight:700;">₱${loan.amountPerInstallment.toLocaleString()}</div>
                 </div>
                 <div>
-                    <div style="font-size:0.68rem; color:var(--success); text-transform:uppercase; font-weight:600;">Total Paid</div>
-                    <div style="font-size:1rem; font-weight:700; color:var(--success);">₱${loan.totalPaid.toLocaleString()}</div>
+                    <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Total Principal</div>
+                    <div style="font-size:0.9rem; font-weight:700;">₱${loan.totalPrincipal.toLocaleString()}</div>
                 </div>
                 <div>
-                    <div style="font-size:0.68rem; color:var(--danger); text-transform:uppercase; font-weight:600;">Remaining</div>
-                    <div style="font-size:1.3rem; font-weight:800; color:${isFullyPaid ? 'var(--success)' : 'var(--danger)'};">
+                    <div style="font-size:0.65rem; color:var(--success); text-transform:uppercase; font-weight:600;">Total Paid</div>
+                    <div style="font-size:0.9rem; font-weight:700; color:var(--success);">₱${loan.totalPaid.toLocaleString()}</div>
+                </div>
+                <div>
+                    <div style="font-size:0.65rem; color:var(--danger); text-transform:uppercase; font-weight:600;">Remaining</div>
+                    <div style="font-size:1.2rem; font-weight:800; color:${loan.isFullyPaid ? 'var(--success)' : 'var(--danger)'};">
                         ₱${loan.remaining.toLocaleString()}
                     </div>
                 </div>
             </div>
 
             <!-- Progress bar -->
-            <div style="background:var(--border); border-radius:99px; height:8px; margin-bottom:8px; overflow:hidden;">
-                <div style="
-                    width:${pct}%;
-                    height:100%;
-                    background:${barColor};
-                    border-radius:99px;
-                    transition:width 0.4s ease;
-                "></div>
+            <div style="background:var(--border); border-radius:99px; height:8px; margin-bottom:6px; overflow:hidden;">
+                <div style="width:${pct}%; height:100%; background:${barColor}; border-radius:99px; transition:width 0.4s ease;"></div>
             </div>
-            <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px;">
-                ${pct}% paid off
+
+            <!-- Labels row -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:0.7rem; color:var(--text-muted);">${installmentLabel}</span>
+                <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${pct}%</span>
             </div>
-            ${latestLine}
+            <div style="font-size:0.7rem; color:var(--text-muted);">${latestLine}</div>
 
             <!-- Collapsible payment history -->
-            <div id="lh_${sanitizeId(loan.displayName)}" style="display:none; margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
-                <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
+            <div id="${histId}" style="display:none; margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
+                <div style="font-size:0.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
                     Payment History
                 </div>
                 ${loan.paymentHistory.length ? `
-                    <div style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto;">
+                    <div style="display:flex; flex-direction:column; gap:5px; max-height:200px; overflow-y:auto;">
                         ${loan.paymentHistory.map(p => `
                             <div style="display:flex; justify-content:space-between; align-items:center;
-                                        padding:6px 10px; background:var(--bg); border-radius:8px; font-size:0.8rem;">
+                                        padding:5px 10px; background:var(--bg); border-radius:8px; font-size:0.78rem;">
                                 <span style="color:var(--text-muted);">${p.dateKey}</span>
                                 <span style="font-weight:700; color:var(--success);">₱${p.paid.toLocaleString()}</span>
                             </div>
                         `).join('')}
                     </div>
-                ` : `<div style="font-size:0.8rem; color:var(--text-muted);">No payments yet.</div>`}
+                ` : `<div style="font-size:0.8rem; color:var(--text-muted);">No payments recorded yet.</div>`}
             </div>
         </div>
     `;
