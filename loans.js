@@ -32,19 +32,24 @@ function getLoanSummaries() {
         const pastInstallments = pastDates.length;
 
         // --- Tally payments from fulfilledMap ---
+        // Scan ALL fulfilledMap keys for this transaction id — this is the source of truth.
+        // We don't rely on generated dates matching exactly; any key ending in _<id> counts.
         let paidInstallments = 0;
         let totalPaid = 0;
         const paymentHistory = [];
 
-        allDates.forEach(dateKey => {
-            const k = `${dateKey}_${t.id}`;
+        const allFulfilledKeys = Object.keys(fulfilledMap).filter(k => k.endsWith(`_${t.id}`));
+
+        allFulfilledKeys.forEach(k => {
             const record = fulfilledMap[k];
-            if (record) {
-                paidInstallments++;
-                const paid = typeof record === 'object' ? (record.paidAmount || t.amount) : t.amount;
-                totalPaid += paid;
-                paymentHistory.push({ dateKey, paid });
-            }
+            // Skip partial-only records (partial: true means not yet fully paid for that occurrence)
+            // But still count the paidAmount toward totalPaid
+            const paid = typeof record === 'object' ? (record.paidAmount || t.amount) : t.amount;
+            const isPartial = typeof record === 'object' && record.partial === true;
+            if (!isPartial) paidInstallments++;
+            totalPaid += paid;
+            const dateKey = k.slice(0, k.lastIndexOf(`_${t.id}`));
+            paymentHistory.push({ dateKey, paid, partial: isPartial });
         });
 
         const totalPrincipal = t.amount * totalInstallments;
@@ -183,8 +188,8 @@ function renderLoanCard(loan) {
         ? `${loan.paidInstallments} / ${loan.totalInstallments} installments paid`
         : (loan.isFullyPaid ? 'Paid' : 'Unpaid');
 
-    // Overdue: past installments that are not yet paid
-    const overdue = Math.max(0, loan.pastInstallments - loan.paidInstallments);
+    // Overdue: past installments not yet paid (hidden if loan is fully paid off)
+    const overdue = loan.isFullyPaid ? 0 : Math.max(0, loan.pastInstallments - loan.paidInstallments);
     const overdueTag = overdue > 0
         ? `<span style="background:#fef2f2; color:var(--danger); font-size:0.65rem; font-weight:700;
                         padding:2px 7px; border-radius:99px; margin-left:6px;">
