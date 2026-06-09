@@ -3,6 +3,7 @@
  */
 let vaults = JSON.parse(localStorage.getItem('vaultsData')) || [];
 let jars = JSON.parse(localStorage.getItem('jarsData')) || [];
+let loans = JSON.parse(localStorage.getItem('loansData')) || [];
 let transactions = JSON.parse(localStorage.getItem('moneyData')) || [];
 let fulfilledMap = JSON.parse(localStorage.getItem('fulfilledData')) || {};
 let skippedMap = JSON.parse(localStorage.getItem('skippedData')) || {};
@@ -27,6 +28,7 @@ function showPage(id) {
     if (id === 'vault') {
         renderVaults();
         renderJars();
+        renderLoans();
     }
     if (id === 'settings') renderSettings(); // NEW: Render settings page
 }
@@ -148,6 +150,11 @@ function importData(event) {
                         console.log('🔄 Rendered jars after import');
                     }
 
+                    if (typeof renderLoans === "function") {
+                        renderLoans();
+                        console.log('🔄 Rendered loans after import');
+                    }
+
                     if (typeof renderTransactions === "function") {
                         renderTransactions();
                         console.log('🔄 Rendered transactions after import');
@@ -239,6 +246,11 @@ function clearAllData() {
         if (typeof renderJars === "function") {
             renderJars();
             console.log('🔄 Rendered jars');
+        }
+
+        if (typeof renderLoans === "function") {
+            renderLoans();
+            console.log('🔄 Rendered loans');
         }
 
         if (typeof renderTransactions === "function") {

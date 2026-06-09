@@ -1,438 +1,801 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Prosper | Modular Budgeting</title>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <link rel="stylesheet" href="style.css">
-</head>
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
 
-<body>
-
+  <body>
     <nav>
-        <h1>Prosper</h1>
-        <div class="nav-links">
-            <button id="btn-vault" onclick="showPage('vault')">💎 The Vaults</button>
-            <button id="btn-dashboard" onclick="showPage('dashboard')" class="active">📅 Dashboard</button>
-            <button id="btn-review" onclick="showPage('review')">🔍 Review Page</button>
-            <button id="btn-input" onclick="showPage('input')">💸 Transactions</button>
-            <button id="btn-settings" onclick="showPage('settings')">⚙️ Settings</button> <!-- NEW -->
-        </div>
+      <h1>Prosper</h1>
+      <div class="nav-links">
+        <button id="btn-vault" onclick="showPage('vault')">
+          💎 The Vaults
+        </button>
+        <button
+          id="btn-dashboard"
+          onclick="showPage('dashboard')"
+          class="active"
+        >
+          📅 Dashboard
+        </button>
+        <button id="btn-review" onclick="showPage('review')">
+          🔍 Review Page
+        </button>
+        <button id="btn-input" onclick="showPage('input')">
+          💸 Transactions
+        </button>
+        <button id="btn-settings" onclick="showPage('settings')">
+          ⚙️ Settings
+        </button>
+        <!-- NEW -->
+      </div>
     </nav>
 
     <main>
-        <div class="container">
-
-            <div id="vault" class="page hidden">
-                <!-- Vaults Section -->
-                <div class="vault-jar-header">
-                    <div>
-                        <h2>Vaults</h2>
-                        <small style="opacity: 0.8; font-weight: bold;">TOTAL BALANCE (for expenses)</small>
-                        <div class="total-display" id="totalVaultDisplay">₱0.00</div>
-                    </div>
-                    <button class="btn-primary" onclick="openVaultModal()">+ New Vault</button>
-                </div>
-                <div class="vault-grid" id="vaultContainer"></div>
-
-                <!-- Jars Section -->
-                <div class="jar-section">
-                    <div class="vault-jar-header">
-                        <div>
-                            <h2 style="color: var(--accent);">Savings Jars</h2>
-                            <small style="opacity: 0.8; font-weight: bold;">TOTAL SAVINGS</small>
-                            <div class="jar-total-display" id="totalJarDisplay">₱0.00</div>
-                        </div>
-                        <button class="btn-primary" style="background: var(--accent);" onclick="openJarModal()">+ New
-                            Jar</button>
-                    </div>
-                    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
-                        Jars are for savings goals and are not included in your expense calculations.
-                        Drag to rearrange vaults and jars.
-                    </p>
-                    <div class="jar-grid" id="jarContainer"></div>
-                </div>
+      <div class="container">
+        <div id="vault" class="page hidden">
+          <!-- Vaults Section -->
+          <div class="vault-jar-header">
+            <div>
+              <h2>Vaults</h2>
+              <small style="opacity: 0.8; font-weight: bold"
+                >TOTAL BALANCE (for expenses)</small
+              >
+              <div class="total-display" id="totalVaultDisplay">₱0.00</div>
             </div>
+            <button class="btn-primary" onclick="openVaultModal()">
+              + New Vault
+            </button>
+          </div>
+          <div class="vault-grid" id="vaultContainer"></div>
 
-            <div id="dashboard" class="page">
-                <div class="page-header">
-                    <div class="month-nav">
-                        <button class="btn-ghost" onclick="changeMonth(-1)">←</button>
-                        <span id="monthTitleLive"></span>
-                        <button class="btn-ghost" onclick="changeMonth(1)">→</button>
-                        <div style="width: 1px; height: 20px; background: var(--border); margin: 0 5px;"></div>
-                        <button class="btn-ghost" onclick="jumpToToday()">Today</button>
-                    </div>
-                    <h2 style="margin: 0;">Live View</h2>
+          <!-- Loans Section -->
+          <div class="jar-section" id="loansSection">
+            <div class="vault-jar-header">
+              <div>
+                <h2 style="color: var(--danger)">🏦 Loans</h2>
+                <small style="opacity: 0.8; font-weight: bold"
+                  >TOTAL REMAINING BALANCE</small
+                >
+                <div
+                  class="jar-total-display"
+                  id="totalLoanDisplay"
+                  style="color: var(--danger)"
+                >
+                  ₱0.00
                 </div>
-
-                <div style="display: flex; gap: 2rem; align-items: flex-start;">
-                    <div class="card" style="flex: 1;">
-                        <table class="cal-table">
-                            <thead>
-                                <tr>
-                                    <th>Sun</th>
-                                    <th>Mon</th>
-                                    <th>Tue</th>
-                                    <th>Wed</th>
-                                    <th>Thu</th>
-                                    <th>Fri</th>
-                                    <th>Sat</th>
-                                    <th>+/-</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody id="liveCalBody"></tbody>
-                        </table>
-                    </div>
-
-                    <div id="upcomingSidebar" style="width: 300px; position: sticky; top: 80px;">
-                        <h3
-                            style="margin-top: 0; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">
-                            Due in 5 Days</h3>
-                        <div id="upcomingList" style="display: flex; flex-direction: column; gap: 10px;">
-                        </div>
-                    </div>
-                </div>
+              </div>
             </div>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem">
+              Derived from transactions with category <strong>Loan</strong>.
+              Payments recorded via the calendar are reflected here
+              automatically.
+            </p>
+            <div class="jar-grid" id="loanContainer"></div>
+          </div>
 
-            <div id="review" class="page hidden">
-                <div class="page-header">
-                    <div style="display: flex; align-items: center; gap: 20px;">
-                        <div class="month-nav">
-                            <button class="btn-ghost" onclick="changeMonth(-1)">←</button>
-                            <span id="monthTitleReview"></span>
-                            <button class="btn-ghost" onclick="changeMonth(1)">→</button>
-                            <div style="width: 1px; height: 20px; background: var(--border); margin: 0 5px;"></div>
-                            <button class="btn-ghost" onclick="jumpToToday()">Today</button>
-                        </div>
-
-                        <div id="monthSummaryReview" style="display: flex; gap: 10px; align-items: center;">
-                            <div class="summary-badge"><small>IN</small> <span id="sumIncomeReview"
-                                    style="color: var(--success);">$0</span></div>
-                            <div class="summary-badge"><small>OUT</small> <span id="sumExpenseReview"
-                                    style="color: var(--danger);">$0</span></div>
-                            <div class="summary-badge" style="background: var(--nav-bg); color: white;">
-                                <small>NET</small> <span id="sumNetReview">$0</span>
-                            </div>
-                        </div>
-                    </div>
-                    <h2 style="margin: 0;">Forecast View</h2>
-                </div>
-                <div class="card">
-                    <table class="cal-table">
-                        <thead>
-                            <tr>
-                                <th>Sun</th>
-                                <th>Mon</th>
-                                <th>Tue</th>
-                                <th>Wed</th>
-                                <th>Thu</th>
-                                <th>Fri</th>
-                                <th>Sat</th>
-                                <th>+/-</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody id="reviewCalBody"></tbody>
-                    </table>
-                </div>
+          <!-- Jars Section -->
+          <div class="jar-section">
+            <div class="vault-jar-header">
+              <div>
+                <h2 style="color: var(--accent)">Savings Jars</h2>
+                <small style="opacity: 0.8; font-weight: bold"
+                  >TOTAL SAVINGS</small
+                >
+                <div class="jar-total-display" id="totalJarDisplay">₱0.00</div>
+              </div>
+              <button
+                class="btn-primary"
+                style="background: var(--accent)"
+                onclick="openJarModal()"
+              >
+                + New Jar
+              </button>
             </div>
-
-            <div id="input" class="page hidden">
-                <div class="page-header">
-                    <div>
-                        <h2>Transactions</h2>
-                        <p style="color: var(--text-muted); margin: 5px 0 0 0; font-size: 0.9rem;">
-                            Categories are collapsed by default. Click to expand.
-                        </p>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <div style="display: flex; gap: 5px;">
-                            <button class="btn-ghost" onclick="collapseAllCategories()" title="Collapse all categories">
-                                <span style="font-size: 0.8rem;">▲ Collapse All</span>
-                            </button>
-                            <button class="btn-ghost" onclick="expandAllCategories()" title="Expand all categories">
-                                <span style="font-size: 0.8rem;">▼ Expand All</span>
-                            </button>
-                        </div>
-                        <button class="btn-primary" onclick="openTransModal()">+ Add Transaction</button>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 1.5rem;">
-                    <input type="text" id="transSearch"
-                        placeholder="🔍 Search transactions by name, amount, category, or date"
-                        style="margin-bottom: 0; font-size: 0.9rem;" onkeyup="renderTransactions()">
-                </div>
-
-                <div class="tab-container">
-                    <button class="tab-btn active" id="tab-active" onclick="filterTrans('active')">
-                        <span style="display: flex; align-items: center; gap: 5px;">
-                            📅 Active & Future
-                            <span id="activeCount"
-                                style="font-size: 0.7rem; background: var(--primary); color: white; padding: 2px 6px; border-radius: 10px;">0</span>
-                        </span>
-                    </button>
-                    <button class="tab-btn" id="tab-completed" onclick="filterTrans('completed')">
-                        <span style="display: flex; align-items: center; gap: 5px;">
-                            ✅ Completed
-                            <span id="completedCount"
-                                style="font-size: 0.7rem; background: var(--text-muted); color: white; padding: 2px 6px; border-radius: 10px;">0</span>
-                        </span>
-                    </button>
-                </div>
-
-                <div class="card" style="overflow: auto; border-radius: 12px;">
-                    <div style="padding: 15px; border-bottom: 1px solid var(--border); background: #f8fafc;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-weight: 600; color: var(--text-muted);">Transaction Summary</span>
-                            <span id="transactionSummary" style="font-size: 0.85rem; color: var(--text-muted);">
-                                Loading...
-                            </span>
-                        </div>
-                    </div>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead style="background: #f8fafc; text-align: left;">
-                            <tr>
-                                <th style="padding: 15px; font-weight: 600; color: var(--text-muted);">Description</th>
-                                <th style="font-weight: 600; color: var(--text-muted);">Amount</th>
-                                <th style="font-weight: 600; color: var(--text-muted);">Date</th>
-                                <th style="font-weight: 600; color: var(--text-muted);">Type</th>
-                                <th style="font-weight: 600; color: var(--text-muted);">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="transactionList"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="settings" class="page hidden">
-                <div class="page-header">
-                    <h2>⚙️ Settings</h2>
-                </div>
-
-                <div class="card" style="margin-bottom: 2rem;">
-                    <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px;">
-                        📊 Data Statistics
-                    </h3>
-                    <div id="settingsStats"></div>
-                </div>
-
-                <div class="card" style="margin-bottom: 2rem;">
-                    <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px;">
-                        📥 Import Data
-                    </h3>
-                    <p style="color: var(--text-muted); margin-bottom: 20px;">
-                        Import your Prosper data from a backup file. This will replace all current data.
-                    </p>
-                    <div
-                        style="border: 2px dashed var(--border); border-radius: 12px; padding: 40px; text-align: center;">
-                        <div style="font-size: 3rem; margin-bottom: 15px;">📁</div>
-                        <h4 style="margin: 0 0 10px 0;">Upload Backup File</h4>
-                        <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">
-                            Select a Prosper backup file (.json) to restore your data
-                        </p>
-                        <label for="importFile" style="display: inline-block;">
-                            <div
-                                style="background: var(--primary); color: white; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600;">
-                                Choose File
-                            </div>
-                            <input type="file" id="importFile" accept=".json" style="display: none;"
-                                onchange="importData(event)">
-                        </label>
-                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 15px;">
-                            Only upload files that were previously exported from Prosper
-                        </p>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-bottom: 2rem;">
-                    <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px;">
-                        📤 Export Data
-                    </h3>
-                    <p style="color: var(--text-muted); margin-bottom: 20px;">
-                        Create a backup of all your Prosper data. Download a JSON file that contains everything.
-                    </p>
-                    <div
-                        style="border: 1px solid var(--border); border-radius: 12px; padding: 30px; background: #f8fafc;">
-                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                            <div style="font-size: 2rem;">💾</div>
-                            <div>
-                                <h4 style="margin: 0 0 5px 0;">Full Data Backup</h4>
-                                <p style="color: var(--text-muted); margin: 0; font-size: 0.9rem;">
-                                    Includes all transactions, vaults, jars, and settings
-                                </p>
-                            </div>
-                        </div>
-                        <button onclick="exportData()"
-                            style="background: var(--success); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%;">
-                            Download Backup File
-                        </button>
-                    </div>
-                </div>
-
-                <div class="card" style="margin-bottom: 2rem; border-left: 4px solid var(--danger);">
-                    <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; color: var(--danger);">
-                        🚨 Danger Zone
-                    </h3>
-                    <p style="color: var(--text-muted); margin-bottom: 20px;">
-                        These actions are permanent and cannot be undone. Make sure you have a backup first.
-                    </p>
-
-                    <div
-                        style="border: 1px solid var(--border); border-radius: 12px; padding: 30px; background: #fef2f2;">
-                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                            <div style="font-size: 2rem; color: var(--danger);">🗑️</div>
-                            <div>
-                                <h4 style="margin: 0 0 5px 0; color: var(--danger);">Clear All Data</h4>
-                                <p style="color: var(--danger); margin: 0; font-size: 0.9rem; opacity: 0.8;">
-                                    Permanently delete all your data and start fresh
-                                </p>
-                            </div>
-                        </div>
-                        <button onclick="clearAllData()"
-                            style="background: var(--danger); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%;">
-                            Clear All Data
-                        </button>
-                    </div>
-                </div>
-
-                <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                        <div style="font-size: 2rem;">✨</div>
-                        <div>
-                            <h3 style="margin: 0 0 5px 0; color: white;">About Prosper</h3>
-                            <p style="margin: 0; opacity: 0.9; font-size: 0.9rem;">
-                                Version 1.0 • Made with ❤️ for smart budgeting
-                            </p>
-                        </div>
-                    </div>
-                    <div style="font-size: 0.85rem; opacity: 0.8;">
-                        <p>Your data is stored locally in your browser. No data is sent to any server.</p>
-                        <p style="margin-top: 10px;">💡 Tip: Regularly export your data to avoid losing it if you clear
-                            browser data.</p>
-                    </div>
-                </div>
-            </div>
-
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem">
+              Jars are for savings goals and are not included in your expense
+              calculations. Drag to rearrange vaults and jars.
+            </p>
+            <div class="jar-grid" id="jarContainer"></div>
+          </div>
         </div>
+
+        <div id="dashboard" class="page">
+          <div class="page-header">
+            <div class="month-nav">
+              <button class="btn-ghost" onclick="changeMonth(-1)">←</button>
+              <span id="monthTitleLive"></span>
+              <button class="btn-ghost" onclick="changeMonth(1)">→</button>
+              <div
+                style="
+                  width: 1px;
+                  height: 20px;
+                  background: var(--border);
+                  margin: 0 5px;
+                "
+              ></div>
+              <button class="btn-ghost" onclick="jumpToToday()">Today</button>
+            </div>
+            <h2 style="margin: 0">Live View</h2>
+          </div>
+
+          <div style="display: flex; gap: 2rem; align-items: flex-start">
+            <div class="card" style="flex: 1">
+              <table class="cal-table">
+                <thead>
+                  <tr>
+                    <th>Sun</th>
+                    <th>Mon</th>
+                    <th>Tue</th>
+                    <th>Wed</th>
+                    <th>Thu</th>
+                    <th>Fri</th>
+                    <th>Sat</th>
+                    <th>+/-</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="liveCalBody"></tbody>
+              </table>
+            </div>
+
+            <div
+              id="upcomingSidebar"
+              style="width: 300px; position: sticky; top: 80px"
+            >
+              <h3
+                style="
+                  margin-top: 0;
+                  font-size: 0.9rem;
+                  color: var(--text-muted);
+                  text-transform: uppercase;
+                  letter-spacing: 1px;
+                "
+              >
+                Due in 5 Days
+              </h3>
+              <div
+                id="upcomingList"
+                style="display: flex; flex-direction: column; gap: 10px"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="review" class="page hidden">
+          <div class="page-header">
+            <div style="display: flex; align-items: center; gap: 20px">
+              <div class="month-nav">
+                <button class="btn-ghost" onclick="changeMonth(-1)">←</button>
+                <span id="monthTitleReview"></span>
+                <button class="btn-ghost" onclick="changeMonth(1)">→</button>
+                <div
+                  style="
+                    width: 1px;
+                    height: 20px;
+                    background: var(--border);
+                    margin: 0 5px;
+                  "
+                ></div>
+                <button class="btn-ghost" onclick="jumpToToday()">Today</button>
+              </div>
+
+              <div
+                id="monthSummaryReview"
+                style="display: flex; gap: 10px; align-items: center"
+              >
+                <div class="summary-badge">
+                  <small>IN</small>
+                  <span id="sumIncomeReview" style="color: var(--success)"
+                    >$0</span
+                  >
+                </div>
+                <div class="summary-badge">
+                  <small>OUT</small>
+                  <span id="sumExpenseReview" style="color: var(--danger)"
+                    >$0</span
+                  >
+                </div>
+                <div
+                  class="summary-badge"
+                  style="background: var(--nav-bg); color: white"
+                >
+                  <small>NET</small> <span id="sumNetReview">$0</span>
+                </div>
+              </div>
+            </div>
+            <h2 style="margin: 0">Forecast View</h2>
+          </div>
+          <div class="card">
+            <table class="cal-table">
+              <thead>
+                <tr>
+                  <th>Sun</th>
+                  <th>Mon</th>
+                  <th>Tue</th>
+                  <th>Wed</th>
+                  <th>Thu</th>
+                  <th>Fri</th>
+                  <th>Sat</th>
+                  <th>+/-</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="reviewCalBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="input" class="page hidden">
+          <div class="page-header">
+            <div>
+              <h2>Transactions</h2>
+              <p
+                style="
+                  color: var(--text-muted);
+                  margin: 5px 0 0 0;
+                  font-size: 0.9rem;
+                "
+              >
+                Categories are collapsed by default. Click to expand.
+              </p>
+            </div>
+            <div style="display: flex; gap: 10px">
+              <div style="display: flex; gap: 5px">
+                <button
+                  class="btn-ghost"
+                  onclick="collapseAllCategories()"
+                  title="Collapse all categories"
+                >
+                  <span style="font-size: 0.8rem">▲ Collapse All</span>
+                </button>
+                <button
+                  class="btn-ghost"
+                  onclick="expandAllCategories()"
+                  title="Expand all categories"
+                >
+                  <span style="font-size: 0.8rem">▼ Expand All</span>
+                </button>
+              </div>
+              <button class="btn-primary" onclick="openTransModal()">
+                + Add Transaction
+              </button>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 1.5rem">
+            <input
+              type="text"
+              id="transSearch"
+              placeholder="🔍 Search transactions by name, amount, category, or date"
+              style="margin-bottom: 0; font-size: 0.9rem"
+              onkeyup="renderTransactions()"
+            />
+          </div>
+
+          <div class="tab-container">
+            <button
+              class="tab-btn active"
+              id="tab-active"
+              onclick="filterTrans('active')"
+            >
+              <span style="display: flex; align-items: center; gap: 5px">
+                📅 Active & Future
+                <span
+                  id="activeCount"
+                  style="
+                    font-size: 0.7rem;
+                    background: var(--primary);
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 10px;
+                  "
+                  >0</span
+                >
+              </span>
+            </button>
+            <button
+              class="tab-btn"
+              id="tab-completed"
+              onclick="filterTrans('completed')"
+            >
+              <span style="display: flex; align-items: center; gap: 5px">
+                ✅ Completed
+                <span
+                  id="completedCount"
+                  style="
+                    font-size: 0.7rem;
+                    background: var(--text-muted);
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 10px;
+                  "
+                  >0</span
+                >
+              </span>
+            </button>
+          </div>
+
+          <div class="card" style="overflow: auto; border-radius: 12px">
+            <div
+              style="
+                padding: 15px;
+                border-bottom: 1px solid var(--border);
+                background: #f8fafc;
+              "
+            >
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                "
+              >
+                <span style="font-weight: 600; color: var(--text-muted)"
+                  >Transaction Summary</span
+                >
+                <span
+                  id="transactionSummary"
+                  style="font-size: 0.85rem; color: var(--text-muted)"
+                >
+                  Loading...
+                </span>
+              </div>
+            </div>
+            <table style="width: 100%; border-collapse: collapse">
+              <thead style="background: #f8fafc; text-align: left">
+                <tr>
+                  <th
+                    style="
+                      padding: 15px;
+                      font-weight: 600;
+                      color: var(--text-muted);
+                    "
+                  >
+                    Description
+                  </th>
+                  <th style="font-weight: 600; color: var(--text-muted)">
+                    Amount
+                  </th>
+                  <th style="font-weight: 600; color: var(--text-muted)">
+                    Date
+                  </th>
+                  <th style="font-weight: 600; color: var(--text-muted)">
+                    Type
+                  </th>
+                  <th style="font-weight: 600; color: var(--text-muted)">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="transactionList"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="settings" class="page hidden">
+          <div class="page-header">
+            <h2>⚙️ Settings</h2>
+          </div>
+
+          <div class="card" style="margin-bottom: 2rem">
+            <h3
+              style="
+                margin-top: 0;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+              "
+            >
+              📊 Data Statistics
+            </h3>
+            <div id="settingsStats"></div>
+          </div>
+
+          <div class="card" style="margin-bottom: 2rem">
+            <h3
+              style="
+                margin-top: 0;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+              "
+            >
+              📥 Import Data
+            </h3>
+            <p style="color: var(--text-muted); margin-bottom: 20px">
+              Import your Prosper data from a backup file. This will replace all
+              current data.
+            </p>
+            <div
+              style="
+                border: 2px dashed var(--border);
+                border-radius: 12px;
+                padding: 40px;
+                text-align: center;
+              "
+            >
+              <div style="font-size: 3rem; margin-bottom: 15px">📁</div>
+              <h4 style="margin: 0 0 10px 0">Upload Backup File</h4>
+              <p
+                style="
+                  color: var(--text-muted);
+                  margin-bottom: 20px;
+                  font-size: 0.9rem;
+                "
+              >
+                Select a Prosper backup file (.json) to restore your data
+              </p>
+              <label for="importFile" style="display: inline-block">
+                <div
+                  style="
+                    background: var(--primary);
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: 600;
+                  "
+                >
+                  Choose File
+                </div>
+                <input
+                  type="file"
+                  id="importFile"
+                  accept=".json"
+                  style="display: none"
+                  onchange="importData(event)"
+                />
+              </label>
+              <p
+                style="
+                  font-size: 0.85rem;
+                  color: var(--text-muted);
+                  margin-top: 15px;
+                "
+              >
+                Only upload files that were previously exported from Prosper
+              </p>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom: 2rem">
+            <h3
+              style="
+                margin-top: 0;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+              "
+            >
+              📤 Export Data
+            </h3>
+            <p style="color: var(--text-muted); margin-bottom: 20px">
+              Create a backup of all your Prosper data. Download a JSON file
+              that contains everything.
+            </p>
+            <div
+              style="
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 30px;
+                background: #f8fafc;
+              "
+            >
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 15px;
+                  margin-bottom: 20px;
+                "
+              >
+                <div style="font-size: 2rem">💾</div>
+                <div>
+                  <h4 style="margin: 0 0 5px 0">Full Data Backup</h4>
+                  <p
+                    style="
+                      color: var(--text-muted);
+                      margin: 0;
+                      font-size: 0.9rem;
+                    "
+                  >
+                    Includes all transactions, vaults, jars, and settings
+                  </p>
+                </div>
+              </div>
+              <button
+                onclick="exportData()"
+                style="
+                  background: var(--success);
+                  color: white;
+                  border: none;
+                  padding: 12px 24px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-weight: 600;
+                  width: 100%;
+                "
+              >
+                Download Backup File
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="card"
+            style="margin-bottom: 2rem; border-left: 4px solid var(--danger)"
+          >
+            <h3
+              style="
+                margin-top: 0;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                color: var(--danger);
+              "
+            >
+              🚨 Danger Zone
+            </h3>
+            <p style="color: var(--text-muted); margin-bottom: 20px">
+              These actions are permanent and cannot be undone. Make sure you
+              have a backup first.
+            </p>
+
+            <div
+              style="
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 30px;
+                background: #fef2f2;
+              "
+            >
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 15px;
+                  margin-bottom: 20px;
+                "
+              >
+                <div style="font-size: 2rem; color: var(--danger)">🗑️</div>
+                <div>
+                  <h4 style="margin: 0 0 5px 0; color: var(--danger)">
+                    Clear All Data
+                  </h4>
+                  <p
+                    style="
+                      color: var(--danger);
+                      margin: 0;
+                      font-size: 0.9rem;
+                      opacity: 0.8;
+                    "
+                  >
+                    Permanently delete all your data and start fresh
+                  </p>
+                </div>
+              </div>
+              <button
+                onclick="clearAllData()"
+                style="
+                  background: var(--danger);
+                  color: white;
+                  border: none;
+                  padding: 12px 24px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-weight: 600;
+                  width: 100%;
+                "
+              >
+                Clear All Data
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="card"
+            style="
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+            "
+          >
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                margin-bottom: 15px;
+              "
+            >
+              <div style="font-size: 2rem">✨</div>
+              <div>
+                <h3 style="margin: 0 0 5px 0; color: white">About Prosper</h3>
+                <p style="margin: 0; opacity: 0.9; font-size: 0.9rem">
+                  Version 1.0 • Made with ❤️ for smart budgeting
+                </p>
+              </div>
+            </div>
+            <div style="font-size: 0.85rem; opacity: 0.8">
+              <p>
+                Your data is stored locally in your browser. No data is sent to
+                any server.
+              </p>
+              <p style="margin-top: 10px">
+                💡 Tip: Regularly export your data to avoid losing it if you
+                clear browser data.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
 
     <div class="modal-overlay" id="transModal">
-        <div class="modal-card">
-            <h3 id="modalTitle">Transaction Details</h3>
-            <form id="transForm">
-                <input type="hidden" id="tEditId">
-                <label>Description</label>
-                <input type="text" id="tName" required placeholder="Rent, Salary, etc.">
+      <div class="modal-card">
+        <h3 id="modalTitle">Transaction Details</h3>
+        <form id="transForm">
+          <input type="hidden" id="tEditId" />
+          <label>Description</label>
+          <input
+            type="text"
+            id="tName"
+            required
+            placeholder="Rent, Salary, etc."
+          />
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div>
-                        <label>Amount</label>
-                        <input type="number" id="tAmount" step="0.01" required placeholder="0.00">
-                    </div>
-                    <div>
-                        <label>Type</label>
-                        <select id="tType">
-                            <option value="expense">Expense</option>
-                            <option value="income">Income</option>
-                        </select>
-                    </div>
-                </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+            <div>
+              <label>Amount</label>
+              <input
+                type="number"
+                id="tAmount"
+                step="0.01"
+                required
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <label>Type</label>
+              <select id="tType">
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+              </select>
+            </div>
+          </div>
 
-                <label>Category (Optional)</label>
-                <select id="tCategory">
-                    <option value="">Select Category</option>
-                    <option value="bills">Bills</option>
-                    <option value="food">Food</option>
-                    <option value="transportation">Transportation</option>
-                    <option value="entertainment">Entertainment</option>
-                    <option value="shopping">Shopping</option>
-                    <option value="healthcare">Healthcare</option>
-                    <option value="education">Education</option>
-                    <option value="loan">Loan</option>
-                    <option value="obligation">Obligation</option>
-                    <option value="income">Income</option>
-                    <option value="other">Other</option>
-                </select>
+          <label>Category (Optional)</label>
+          <select id="tCategory">
+            <option value="">Select Category</option>
+            <option value="bills">Bills</option>
+            <option value="food">Food</option>
+            <option value="transportation">Transportation</option>
+            <option value="entertainment">Entertainment</option>
+            <option value="shopping">Shopping</option>
+            <option value="healthcare">Healthcare</option>
+            <option value="education">Education</option>
+            <option value="loan">Loan</option>
+            <option value="obligation">Obligation</option>
+            <option value="income">Income</option>
+            <option value="other">Other</option>
+          </select>
 
-                <label>Frequency</label>
-                <select id="tFreq">
-                    <option value="none">One-time</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="biweekly">Bi-weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                </select>
+          <label>Frequency</label>
+          <select id="tFreq">
+            <option value="none">One-time</option>
+            <option value="weekly">Weekly</option>
+            <option value="biweekly">Bi-weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+          </select>
 
-                <label>Start Date</label>
-                <input type="date" id="tDate" required>
+          <label>Start Date</label>
+          <input type="date" id="tDate" required />
 
-                <label>End Date (Optional)</label>
-                <input type="date" id="tEndDate" placeholder="Optional">
+          <label>End Date (Optional)</label>
+          <input type="date" id="tEndDate" placeholder="Optional" />
 
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
-                    <button type="button" class="btn-ghost" onclick="closeTransModal()">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Transaction</button>
-                </div>
-            </form>
-        </div>
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              justify-content: flex-end;
+              margin-top: 10px;
+            "
+          >
+            <button type="button" class="btn-ghost" onclick="closeTransModal()">
+              Cancel
+            </button>
+            <button type="submit" class="btn-primary">Save Transaction</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <div class="modal-overlay" id="vaultModal">
-        <div class="modal-card">
-            <h3 id="vModalTitle">Manage Vault</h3>
-            <input type="hidden" id="vEditId">
-            <label>Vault Name</label>
-            <input type="text" id="vName" placeholder="e.g., Savings">
-            <label>Current Balance</label>
-            <input type="number" id="vBalance" step="0.01">
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
-                <button class="btn-ghost" onclick="closeVaultModal()">Cancel</button>
-                <button class="btn-primary" onclick="saveVault()">Save Vault</button>
-            </div>
+      <div class="modal-card">
+        <h3 id="vModalTitle">Manage Vault</h3>
+        <input type="hidden" id="vEditId" />
+        <label>Vault Name</label>
+        <input type="text" id="vName" placeholder="e.g., Savings" />
+        <label>Current Balance</label>
+        <input type="number" id="vBalance" step="0.01" />
+        <div
+          style="
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 10px;
+          "
+        >
+          <button class="btn-ghost" onclick="closeVaultModal()">Cancel</button>
+          <button class="btn-primary" onclick="saveVault()">Save Vault</button>
         </div>
+      </div>
     </div>
 
     <div class="modal-overlay" id="jarModal">
-        <div class="modal-card">
-            <h3 id="jModalTitle">New Savings Jar</h3>
-            <input type="hidden" id="jEditId">
-            <label>Jar Name</label>
-            <input type="text" id="jName" placeholder="e.g., Vacation Fund">
-            <label>Goal Amount (Optional)</label>
-            <input type="number" id="jGoalAmount" step="0.01" placeholder="₱0.00">
-            <label>Goal Date (Optional)</label>
-            <input type="date" id="jGoalDate">
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
-                <button class="btn-ghost" onclick="closeJarModal()">Cancel</button>
-                <button class="btn-primary" style="background: var(--accent);" onclick="saveJar()">Save Jar</button>
-            </div>
+      <div class="modal-card">
+        <h3 id="jModalTitle">New Savings Jar</h3>
+        <input type="hidden" id="jEditId" />
+        <label>Jar Name</label>
+        <input type="text" id="jName" placeholder="e.g., Vacation Fund" />
+        <label>Goal Amount (Optional)</label>
+        <input type="number" id="jGoalAmount" step="0.01" placeholder="₱0.00" />
+        <label>Goal Date (Optional)</label>
+        <input type="date" id="jGoalDate" />
+        <div
+          style="
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 10px;
+          "
+        >
+          <button class="btn-ghost" onclick="closeJarModal()">Cancel</button>
+          <button
+            class="btn-primary"
+            style="background: var(--accent)"
+            onclick="saveJar()"
+          >
+            Save Jar
+          </button>
         </div>
+      </div>
     </div>
 
     <div class="modal-overlay" id="dayModal">
-        <div class="modal-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h3 id="dayModalDate" style="margin: 0;">Day Details</h3>
-                <button class="btn-ghost" onclick="closeDayModal()">✕</button>
-            </div>
-            <div id="dayItemList"></div>
+      <div class="modal-card">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+          "
+        >
+          <h3 id="dayModalDate" style="margin: 0">Day Details</h3>
+          <button class="btn-ghost" onclick="closeDayModal()">✕</button>
         </div>
+        <div id="dayItemList"></div>
+      </div>
     </div>
 
     <script src="app.js"></script>
     <script src="calendar.js"></script>
     <script src="transaction.js"></script>
     <script src="vaults.js"></script>
+    <script src="loans.js"></script>
+    <script src="loans.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-
-
-</body>
-
+  </body>
 </html>
