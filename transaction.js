@@ -336,6 +336,8 @@ function openTransModal(title = "New Transaction") {
         // Set default category to empty
         document.getElementById('tCategory').value = '';
     }
+    const titleEl = document.getElementById('modalTitle');
+    if (titleEl) titleEl.innerText = title;
     document.getElementById('transModal').classList.add('active');
 
     // Accessibility: Focus the name input

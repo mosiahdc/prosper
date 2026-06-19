@@ -784,7 +784,16 @@
           "
         >
           <h3 id="dayModalDate" style="margin: 0">Day Details</h3>
-          <button class="btn-ghost" onclick="closeDayModal()">✕</button>
+          <div style="display: flex; gap: 8px; align-items: center">
+            <button
+              class="btn-primary"
+              id="dayModalAddBtn"
+              style="font-size: 0.8rem; padding: 8px 14px"
+            >
+              + Add Transaction
+            </button>
+            <button class="btn-ghost" onclick="closeDayModal()">✕</button>
+          </div>
         </div>
         <div id="dayItemList"></div>
       </div>
@@ -794,7 +803,6 @@
     <script src="calendar.js"></script>
     <script src="transaction.js"></script>
     <script src="vaults.js"></script>
-    <script src="loans.js"></script>
     <script src="loans.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
   </body>

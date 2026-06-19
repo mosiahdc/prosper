@@ -11,24 +11,7 @@
 // CACHE & INDEX MANAGEMENT
 // ============================================
 
-
-// Add this at the very top of calendar.js (after the file content begin)
 console.log('📅 calendar.js loaded');
-
-// Add this inside invalidateTransactionCache() function:
-function invalidateTransactionCache() {
-    transactionIndex = buildTransactionIndex();
-    dayDataCache.clear();
-
-    // Debug logging
-    console.log('📊 Transaction cache rebuilt:', {
-        transactions: transactions.length,
-        dayDataCacheSize: dayDataCache.size,
-        transactionIndex: transactionIndex ? 'built' : 'null'
-    });
-}
-
-
 
 let transactionIndex = null;
 let dayDataCache = new Map();
@@ -890,7 +873,10 @@ function openTransFromCalendar(dateKey) {
     document.getElementById('transForm').reset();
     document.getElementById('tEditId').value = '';
     document.getElementById('tDate').value = dateKey;
+    document.getElementById('tEndDate').value = '';
     document.getElementById('tCategory').value = '';
+    document.getElementById('tFreq').value = 'none'; // Default to one-time for a specific calendar day
+    document.getElementById('modalTitle').innerText = `Add Transaction — ${dateKey}`;
     document.getElementById('transModal').classList.add('active');
     setTimeout(() => document.getElementById('tName').focus(), 100);
 }
