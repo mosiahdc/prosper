@@ -499,6 +499,15 @@ function renderMonthlyScheduleTable() {
         groups[person].push({ loan, label });
     });
 
+    // Sort each person's loans by due day of month (ascending)
+    Object.keys(groups).forEach(person => {
+        groups[person].sort((a, b) => {
+            const dayA = a.loan.transaction.date ? parseInt(a.loan.transaction.date.slice(8, 10), 10) : 99;
+            const dayB = b.loan.transaction.date ? parseInt(b.loan.transaction.date.slice(8, 10), 10) : 99;
+            return dayA - dayB;
+        });
+    });
+
     // Build month totals row
     const monthTotals = months.map(mk =>
         summaries.reduce((sum, loan) => sum + (getLoanAmountForMonth(loan, mk) || 0), 0)
