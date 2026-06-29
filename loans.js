@@ -493,15 +493,15 @@ function renderMonthlyScheduleTable() {
     const yearLabel = months.length ? months[0].split('-')[0] : new Date().getFullYear();
 
     let html = `
-        <div style="overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border); border-radius:12px; max-width:100%;">
+        <div style="overflow:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border); border-radius:12px; max-width:100%; max-height:65vh;">
         <table style="border-collapse:collapse; table-layout:fixed; width:max-content; min-width:${600 + months.length * 110}px; font-size:0.8rem;">
             <thead>
                 <tr>
-                    <th style="background:#7c4a1e; color:white; padding:10px 14px; text-align:left; min-width:160px; width:160px; position:sticky; left:0; z-index:2;">
+                    <th style="background:#7c4a1e; color:white; padding:10px 14px; text-align:left; min-width:160px; width:160px; position:sticky; left:0; top:0; z-index:3;">
                         ${yearLabel}
                     </th>
                     ${months.map(mk => `
-                        <th style="background:#7c4a1e; color:white; padding:10px 8px; text-align:center; min-width:100px; width:100px;">
+                        <th style="background:#7c4a1e; color:white; padding:10px 8px; text-align:center; min-width:100px; width:100px; position:sticky; top:0; z-index:2;">
                             ${monthKeyToLabel(mk)}
                         </th>
                     `).join('')}
