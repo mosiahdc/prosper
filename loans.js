@@ -71,8 +71,18 @@ function getLoanSummaries() {
             remaining,
             pctPaid,
             paymentHistory,
-            isFullyPaid: remaining === 0 && totalPaid > 0,
+            isFullyPaid: false, // set below, after ledger reconciliation
         };
+    });
+
+    // Reconcile isFullyPaid using the same ledger logic the monthly schedule table
+    // uses, so a loan is only ever hidden once every cell would actually show ✓.
+    summaries.forEach(loan => {
+        const ledger = buildLoanMonthLedger(loan);
+        const hasInstallments = ledger.length > 0;
+        const allPaid = hasInstallments && ledger.every(e => e.due === 0);
+        loan.isFullyPaid = allPaid && loan.totalPaid > 0;
+        loan._ledger = ledger; // cache for reuse in the schedule table
     });
 
     // Sort: by deadline (endDate) ascending — soonest due first.
