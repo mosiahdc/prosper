@@ -440,9 +440,16 @@ function monthKeyToLabel(monthKey) {
 }
 
 function renderMonthlyScheduleTable() {
-    const summaries = getLoanSummaries();
-    if (!summaries.length) {
+    const allSummaries = getLoanSummaries();
+    if (!allSummaries.length) {
         return `<p style="color:var(--text-muted); font-size:0.9rem; padding:1rem 0;">No loan transactions found yet.</p>`;
+    }
+
+    // Hide fully paid off loans from the schedule automatically
+    const summaries = allSummaries.filter(loan => !loan.isFullyPaid);
+
+    if (!summaries.length) {
+        return `<p style="color:var(--success); font-size:0.9rem; padding:1rem 0; font-weight:600;">✅ All loans are paid off!</p>`;
     }
 
     const months = getScheduleMonthRange(summaries);
