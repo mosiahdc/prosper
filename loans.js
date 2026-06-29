@@ -376,29 +376,61 @@ function getScheduleMonthRange(summaries) {
 }
 
 /**
+ * Builds a month-by-month installment ledger for a loan, reconciling
+ * ALL fulfilledMap payment records for this transaction against the
+ * scheduled installment slots — the same "any key counts" approach
+ * the loan list card uses, so the two views never disagree.
+ *
+ * Returns an array of { monthKey, due } where due is the remaining
+ * unpaid amount for that month's installment(s) after applying payments
+ * in chronological order (oldest scheduled slot gets paid first).
+ */
+function buildLoanMonthLedger(loan) {
+    const t = loan.transaction;
+    const allDates = getAllInstallmentDates(t); // every scheduled slot, in order
+    if (!allDates.length) return [];
+
+    // Collect every payment record for this transaction, oldest first,
+    // regardless of whether its dateKey matches a generated slot exactly.
+    const payments = Object.keys(fulfilledMap)
+        .filter(k => k.endsWith(`_${t.id}`))
+        .map(k => {
+            const record = fulfilledMap[k];
+            const dateKey = k.slice(0, k.lastIndexOf(`_${t.id}`));
+            const paid = typeof record === 'object' ? (record.paidAmount || t.amount) : t.amount;
+            return { dateKey, paid };
+        })
+        .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+
+    // Pool all payment money together, then apply it against installment
+    // slots in chronological order. This guarantees: if N payments exist,
+    // the first N slots (by date) are considered paid — same total the
+    // card shows, just distributed across months for this table.
+    let pool = payments.reduce((sum, p) => sum + p.paid, 0);
+
+    return allDates.map(dateKey => {
+        let due = t.amount;
+        if (pool >= t.amount) {
+            due = 0;
+            pool -= t.amount;
+        } else if (pool > 0) {
+            due = t.amount - pool;
+            pool = 0;
+        }
+        return { monthKey: dateKey.slice(0, 7), due };
+    });
+}
+
+/**
  * For a given loan + month ("YYYY-MM"), returns the remaining unpaid amount
  * due for that specific month's installment(s), or null if no installment falls
- * in that month.
+ * in that month. Uses the reconciled ledger so totals always match the loan card.
  */
 function getLoanAmountForMonth(loan, monthKey) {
-    const t = loan.transaction;
-    const allDates = getAllInstallmentDates(t);
-    const monthDates = allDates.filter(d => d.startsWith(monthKey));
-    if (!monthDates.length) return null;
-
-    let due = 0;
-    monthDates.forEach(dateKey => {
-        const k = `${dateKey}_${t.id}`;
-        const record = fulfilledMap[k];
-        if (!record) {
-            due += t.amount;
-        } else if (typeof record === 'object' && record.partial) {
-            due += Math.max(0, t.amount - (record.paidAmount || 0));
-        }
-        // fully paid (record === true or {partial:false}) contributes 0
-    });
-
-    return due;
+    if (!loan._ledger) loan._ledger = buildLoanMonthLedger(loan);
+    const entries = loan._ledger.filter(e => e.monthKey === monthKey);
+    if (!entries.length) return null;
+    return entries.reduce((sum, e) => sum + e.due, 0);
 }
 
 function monthKeyToLabel(monthKey) {
