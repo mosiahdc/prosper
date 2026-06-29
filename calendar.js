@@ -505,6 +505,14 @@ function openDayModal(dateKey, isLive) {
             const markPaidOnclick = !it.isFullyPaid
                 ? `openBillPaymentModal('${dateKey}', ${it.id}, ${it.amount}, ${it.paidAmount})`
                 : `toggleFulfill('${dateKey}', ${it.id})`;
+            const liveDeleteBtn = !isRecurring
+                ? `<button class="btn-ghost"
+                            onclick="deleteTransactionFromModal(${it.id}, '${dateKey}')"
+                            title="Delete this transaction"
+                            style="color: var(--danger); font-size: 0.65rem; padding: 6px 8px;">
+                        ✕
+                    </button>`
+                : '';
             actionButtons = `
                 <div style="display: flex; gap: 5px; align-items: center;">
                     <button class="btn-ghost"
@@ -517,6 +525,7 @@ function openDayModal(dateKey, isLive) {
                             onclick="${markPaidOnclick}">
                         ${statusText}
                     </button>
+                    ${liveDeleteBtn}
                 </div>`;
         } else {
             // Review View: Show different options based on transaction type
@@ -968,6 +977,13 @@ function deleteTransactionFromModal(transactionId, dateKey) {
     Object.keys(fulfilledMap).forEach(key => {
         if (key.endsWith(`_${transactionId}`)) {
             delete fulfilledMap[key];
+        }
+    });
+
+    // Also remove any per-occurrence override for this transaction
+    Object.keys(overridesMap).forEach(key => {
+        if (key.endsWith(`_${transactionId}`)) {
+            delete overridesMap[key];
         }
     });
 

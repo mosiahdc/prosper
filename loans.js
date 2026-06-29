@@ -75,9 +75,17 @@ function getLoanSummaries() {
         };
     });
 
-    // Sort: unpaid first (by remaining desc), then paid-off at the bottom
+    // Sort: by deadline (endDate) ascending — soonest due first.
+    // Loans with no endDate go to the bottom (treated as far future).
+    // Fully paid loans always sink to the very bottom regardless of date.
     summaries.sort((a, b) => {
         if (a.isFullyPaid !== b.isFullyPaid) return a.isFullyPaid ? 1 : -1;
+
+        const aDate = a.transaction.endDate || '9999-12-31';
+        const bDate = b.transaction.endDate || '9999-12-31';
+        if (aDate !== bDate) return aDate.localeCompare(bDate);
+
+        // Tie-breaker: larger remaining balance first
         return b.remaining - a.remaining;
     });
 
@@ -183,16 +191,16 @@ function renderLoanCard(loan) {
     const pct = Math.round(loan.pctPaid);
     const t = loan.transaction;
 
-    // Installment progress label  e.g. "5 / 12 installments paid"
+    // Installment progress label  e.g. "5 / 12 paid"
     const installmentLabel = loan.totalInstallments > 1
-        ? `${loan.paidInstallments} / ${loan.totalInstallments} installments paid`
+        ? `${loan.paidInstallments} / ${loan.totalInstallments} paid`
         : (loan.isFullyPaid ? 'Paid' : 'Unpaid');
 
     // Overdue: past installments not yet paid (hidden if loan is fully paid off)
     const overdue = loan.isFullyPaid ? 0 : Math.max(0, loan.pastInstallments - loan.paidInstallments);
     const overdueTag = overdue > 0
-        ? `<span style="background:#fef2f2; color:var(--danger); font-size:0.65rem; font-weight:700;
-                        padding:2px 7px; border-radius:99px; margin-left:6px;">
+        ? `<span style="background:#fef2f2; color:var(--danger); font-size:0.62rem; font-weight:700;
+                        padding:2px 7px; border-radius:99px; white-space:nowrap;">
                ${overdue} overdue
            </span>`
         : '';
@@ -202,87 +210,96 @@ function renderLoanCard(loan) {
         ? `Last payment: ₱${latestPayment.paid.toLocaleString()} on ${latestPayment.dateKey}`
         : 'No payments recorded yet';
 
-    const endDateLine = t.endDate
-        ? `<span style="color:var(--text-muted); font-size:0.7rem;">Until ${t.endDate}</span>`
-        : '';
+    const deadlineLabel = t.endDate ? t.endDate : 'No deadline';
+    const deadlineColor = (!loan.isFullyPaid && t.endDate && t.endDate < new Date().toISOString().split('T')[0])
+        ? 'var(--danger)' : 'var(--text-muted)';
 
     const histId = `lh_${sanitizeId(loan.displayName + '_' + t.id)}`;
 
     return `
         <div class="card" style="
-            padding:1.5rem;
-            border-left:4px solid ${barColor};
+            padding: 1rem 1.25rem;
+            border-left: 4px solid ${barColor};
             ${loan.isFullyPaid ? 'opacity:0.72;' : ''}
+            margin-bottom: 0;
         ">
-            <!-- Header -->
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-                <div>
-                    <div style="color:var(--text-muted); font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
-                        🏦 Loan
-                    </div>
-                    <div style="font-size:1.05rem; font-weight:800; margin-top:3px; display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
-                        ${loan.displayName}
-                        ${loan.isFullyPaid ? '<span style="font-size:0.7rem; color:var(--success); background:#f0fdf4; padding:2px 7px; border-radius:99px;">✅ PAID OFF</span>' : ''}
+            <!-- Main row: list-style, all key info horizontally -->
+            <div style="display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;">
+
+                <!-- Name + deadline (fixed-ish width) -->
+                <div style="min-width:160px; flex: 1 1 160px;">
+                    <div style="font-size:0.95rem; font-weight:800; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        🏦 ${loan.displayName}
+                        ${loan.isFullyPaid ? '<span style="font-size:0.62rem; color:var(--success); background:#f0fdf4; padding:2px 7px; border-radius:99px;">PAID OFF</span>' : ''}
                         ${overdueTag}
                     </div>
-                    ${endDateLine}
+                    <div style="font-size:0.7rem; color:${deadlineColor}; margin-top:2px; font-weight:${deadlineColor === 'var(--danger)' ? 700 : 400};">
+                        📅 Deadline: ${deadlineLabel}
+                    </div>
                 </div>
-                <button class="btn-ghost" style="font-size:0.72rem; padding:4px 10px; white-space:nowrap;"
+
+                <!-- Per installment -->
+                <div style="min-width:90px;">
+                    <div style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Per Installment</div>
+                    <div style="font-size:0.85rem; font-weight:700;">₱${loan.amountPerInstallment.toLocaleString()}</div>
+                </div>
+
+                <!-- Total principal -->
+                <div style="min-width:90px;">
+                    <div style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Principal</div>
+                    <div style="font-size:0.85rem; font-weight:700;">₱${loan.totalPrincipal.toLocaleString()}</div>
+                </div>
+
+                <!-- Total paid -->
+                <div style="min-width:90px;">
+                    <div style="font-size:0.62rem; color:var(--success); text-transform:uppercase; font-weight:600;">Paid</div>
+                    <div style="font-size:0.85rem; font-weight:700; color:var(--success);">₱${loan.totalPaid.toLocaleString()}</div>
+                </div>
+
+                <!-- Remaining -->
+                <div style="min-width:100px;">
+                    <div style="font-size:0.62rem; color:var(--danger); text-transform:uppercase; font-weight:600;">Remaining</div>
+                    <div style="font-size:1.05rem; font-weight:800; color:${loan.isFullyPaid ? 'var(--success)' : 'var(--danger)'};">
+                        ₱${loan.remaining.toLocaleString()}
+                    </div>
+                </div>
+
+                <!-- Progress bar -->
+                <div style="flex: 1 1 140px; min-width:140px;">
+                    <div style="background:var(--border); border-radius:99px; height:7px; overflow:hidden; margin-bottom:4px;">
+                        <div style="width:${pct}%; height:100%; background:${barColor}; border-radius:99px; transition:width 0.4s ease;"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:var(--text-muted);">
+                        <span>${installmentLabel}</span>
+                        <span style="font-weight:700;">${pct}%</span>
+                    </div>
+                </div>
+
+                <!-- History toggle -->
+                <button class="btn-ghost" style="font-size:0.7rem; padding:5px 10px; white-space:nowrap;"
                         onclick="toggleLoanHistory('${histId}')">
                     History
                 </button>
             </div>
 
-            <!-- Amounts -->
-            <div style="display:flex; gap:1.25rem; margin-bottom:12px; flex-wrap:wrap;">
-                <div>
-                    <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Per Installment</div>
-                    <div style="font-size:0.9rem; font-weight:700;">₱${loan.amountPerInstallment.toLocaleString()}</div>
-                </div>
-                <div>
-                    <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Total Principal</div>
-                    <div style="font-size:0.9rem; font-weight:700;">₱${loan.totalPrincipal.toLocaleString()}</div>
-                </div>
-                <div>
-                    <div style="font-size:0.65rem; color:var(--success); text-transform:uppercase; font-weight:600;">Total Paid</div>
-                    <div style="font-size:0.9rem; font-weight:700; color:var(--success);">₱${loan.totalPaid.toLocaleString()}</div>
-                </div>
-                <div>
-                    <div style="font-size:0.65rem; color:var(--danger); text-transform:uppercase; font-weight:600;">Remaining</div>
-                    <div style="font-size:1.2rem; font-weight:800; color:${loan.isFullyPaid ? 'var(--success)' : 'var(--danger)'};">
-                        ₱${loan.remaining.toLocaleString()}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Progress bar -->
-            <div style="background:var(--border); border-radius:99px; height:8px; margin-bottom:6px; overflow:hidden;">
-                <div style="width:${pct}%; height:100%; background:${barColor}; border-radius:99px; transition:width 0.4s ease;"></div>
-            </div>
-
-            <!-- Labels row -->
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="font-size:0.7rem; color:var(--text-muted);">${installmentLabel}</span>
-                <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${pct}%</span>
-            </div>
-            <div style="font-size:0.7rem; color:var(--text-muted);">${latestLine}</div>
+            <div style="font-size:0.68rem; color:var(--text-muted); margin-top:6px;">${latestLine}</div>
 
             <!-- Collapsible payment history -->
-            <div id="${histId}" style="display:none; margin-top:14px; border-top:1px solid var(--border); padding-top:12px;">
-                <div style="font-size:0.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">
+            <div id="${histId}" style="display:none; margin-top:12px; border-top:1px solid var(--border); padding-top:10px;">
+                <div style="font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">
                     Payment History
                 </div>
                 ${loan.paymentHistory.length ? `
-                    <div style="display:flex; flex-direction:column; gap:5px; max-height:200px; overflow-y:auto;">
+                    <div style="display:flex; flex-direction:column; gap:4px; max-height:200px; overflow-y:auto;">
                         ${loan.paymentHistory.map(p => `
                             <div style="display:flex; justify-content:space-between; align-items:center;
-                                        padding:5px 10px; background:var(--bg); border-radius:8px; font-size:0.78rem;">
+                                        padding:5px 10px; background:var(--bg); border-radius:8px; font-size:0.76rem;">
                                 <span style="color:var(--text-muted);">${p.dateKey}</span>
                                 <span style="font-weight:700; color:var(--success);">₱${p.paid.toLocaleString()}</span>
                             </div>
                         `).join('')}
                     </div>
-                ` : `<div style="font-size:0.8rem; color:var(--text-muted);">No payments recorded yet.</div>`}
+                ` : `<div style="font-size:0.78rem; color:var(--text-muted);">No payments recorded yet.</div>`}
             </div>
         </div>
     `;
