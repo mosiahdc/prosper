@@ -84,6 +84,23 @@
               id="loanContainer"
               style="display: flex; flex-direction: column; gap: 0.75rem"
             ></div>
+
+            <div style="margin-top: 1.5rem">
+              <button
+                class="btn-ghost"
+                id="loanScheduleToggleBtn"
+                onclick="toggleMonthlySchedule()"
+                style="font-size: 0.85rem"
+              >
+                Show monthly schedule
+              </button>
+              <div
+                id="loanScheduleWrap"
+                style="display: none; margin-top: 1rem"
+              >
+                <div id="loanScheduleContainer"></div>
+              </div>
+            </div>
           </div>
 
           <!-- Jars Section -->

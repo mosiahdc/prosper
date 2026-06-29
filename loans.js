@@ -184,6 +184,12 @@ function renderLoans() {
     }
 
     container.innerHTML = summaries.map(loan => renderLoanCard(loan)).join('');
+
+    // Keep the monthly schedule table in sync if it's currently shown
+    const scheduleWrap = document.getElementById('loanScheduleWrap');
+    if (scheduleWrap && scheduleWrap.style.display !== 'none') {
+        renderMonthlyScheduleSection();
+    }
 }
 
 function renderLoanCard(loan) {
@@ -313,4 +319,212 @@ function toggleLoanHistory(id) {
 
 function sanitizeId(name) {
     return name.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+// ============================================
+// MONTHLY SCHEDULE TABLE (per-loan, month columns)
+// ============================================
+
+/**
+ * Splits a loan display name into { person, label }.
+ * Convention observed in your data: first word is the person ("Sai", "Erica"),
+ * the rest is the loan label ("GLoan 1", "SLoan 3", etc).
+ * If there's only one word, person = "Other".
+ */
+function splitLoanPerson(displayName) {
+    const parts = displayName.trim().split(/\s+/);
+    if (parts.length < 2) return { person: 'Other', label: displayName };
+    return { person: parts[0], label: parts.slice(1).join(' ') };
+}
+
+/**
+ * Builds the list of month keys ("YYYY-MM") spanning every loan's installment range.
+ * Always includes at least the current month through 12 months ahead if no loans exist.
+ */
+function getScheduleMonthRange(summaries) {
+    let minDate = null;
+    let maxDate = null;
+
+    summaries.forEach(loan => {
+        const t = loan.transaction;
+        if (!t.date) return;
+        const start = t.date.slice(0, 7);
+        const end = (t.endDate || new Date().toISOString().slice(0, 7) + '-28').slice(0, 7);
+        if (!minDate || start < minDate) minDate = start;
+        if (!maxDate || end > maxDate) maxDate = end;
+    });
+
+    if (!minDate) {
+        const now = new Date();
+        minDate = now.toISOString().slice(0, 7);
+        const future = new Date(now);
+        future.setMonth(future.getMonth() + 11);
+        maxDate = future.toISOString().slice(0, 7);
+    }
+
+    const months = [];
+    let [y, m] = minDate.split('-').map(Number);
+    const [endY, endM] = maxDate.split('-').map(Number);
+
+    while (y < endY || (y === endY && m <= endM)) {
+        months.push(`${y}-${String(m).padStart(2, '0')}`);
+        m++;
+        if (m > 12) { m = 1; y++; }
+    }
+
+    return months;
+}
+
+/**
+ * For a given loan + month ("YYYY-MM"), returns the remaining unpaid amount
+ * due for that specific month's installment(s), or null if no installment falls
+ * in that month.
+ */
+function getLoanAmountForMonth(loan, monthKey) {
+    const t = loan.transaction;
+    const allDates = getAllInstallmentDates(t);
+    const monthDates = allDates.filter(d => d.startsWith(monthKey));
+    if (!monthDates.length) return null;
+
+    let due = 0;
+    monthDates.forEach(dateKey => {
+        const k = `${dateKey}_${t.id}`;
+        const record = fulfilledMap[k];
+        if (!record) {
+            due += t.amount;
+        } else if (typeof record === 'object' && record.partial) {
+            due += Math.max(0, t.amount - (record.paidAmount || 0));
+        }
+        // fully paid (record === true or {partial:false}) contributes 0
+    });
+
+    return due;
+}
+
+function monthKeyToLabel(monthKey) {
+    const [y, m] = monthKey.split('-').map(Number);
+    const d = new Date(y, m - 1, 1);
+    return d.toLocaleDateString('en-US', { month: 'long' });
+}
+
+function renderMonthlyScheduleTable() {
+    const summaries = getLoanSummaries();
+    if (!summaries.length) {
+        return `<p style="color:var(--text-muted); font-size:0.9rem; padding:1rem 0;">No loan transactions found yet.</p>`;
+    }
+
+    const months = getScheduleMonthRange(summaries);
+
+    // Group loans by person
+    const groups = {};
+    summaries.forEach(loan => {
+        const { person, label } = splitLoanPerson(loan.displayName);
+        if (!groups[person]) groups[person] = [];
+        groups[person].push({ loan, label });
+    });
+
+    // Build month totals row
+    const monthTotals = months.map(mk =>
+        summaries.reduce((sum, loan) => sum + (getLoanAmountForMonth(loan, mk) || 0), 0)
+    );
+
+    const yearLabel = months.length ? months[0].split('-')[0] : new Date().getFullYear();
+
+    let html = `
+        <div style="overflow-x:auto; border:1px solid var(--border); border-radius:12px;">
+        <table style="border-collapse:collapse; width:100%; min-width:${600 + months.length * 110}px; font-size:0.8rem;">
+            <thead>
+                <tr>
+                    <th style="background:#7c4a1e; color:white; padding:10px 14px; text-align:left; min-width:160px; position:sticky; left:0; z-index:2;">
+                        ${yearLabel}
+                    </th>
+                    ${months.map(mk => `
+                        <th style="background:#7c4a1e; color:white; padding:10px 8px; text-align:center; min-width:100px;">
+                            ${monthKeyToLabel(mk)}
+                        </th>
+                    `).join('')}
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    Object.keys(groups).forEach(person => {
+        const rows = groups[person];
+        html += `
+            <tr>
+                <td style="font-weight:800; font-size:0.95rem; padding:10px 14px; background:var(--bg); border-top:2px solid var(--border); position:sticky; left:0;">
+                    ${person}
+                </td>
+                ${months.map(() => `<td style="background:var(--bg); border-top:2px solid var(--border);"></td>`).join('')}
+            </tr>
+        `;
+
+        rows.forEach(({ loan, label }) => {
+            html += `
+                <tr>
+                    <td style="padding:8px 14px 8px 24px; font-weight:600; border-bottom:1px solid var(--border); position:sticky; left:0; background:var(--card);">
+                        ${label}
+                    </td>
+                    ${months.map(mk => {
+                const amt = getLoanAmountForMonth(loan, mk);
+                if (amt === null) {
+                    return `<td style="text-align:center; padding:8px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td>`;
+                }
+                if (amt === 0) {
+                    return `<td style="text-align:center; padding:8px; border-bottom:1px solid var(--border); color:var(--success); font-weight:600;">✓</td>`;
+                }
+                return `<td style="text-align:right; padding:8px 12px; border-bottom:1px solid var(--border); font-weight:600;">₱${amt.toLocaleString()}</td>`;
+            }).join('')}
+                </tr>
+            `;
+        });
+
+        // Person subtotal row
+        html += `
+            <tr>
+                <td style="padding:8px 14px; font-weight:700; border-bottom:2px solid var(--border); position:sticky; left:0; background:var(--card);">
+                    Subtotal
+                </td>
+                ${months.map(mk => {
+            const subtotal = rows.reduce((s, { loan }) => s + (getLoanAmountForMonth(loan, mk) || 0), 0);
+            return `<td style="text-align:right; padding:8px 12px; border-bottom:2px solid var(--border); font-weight:700; color:var(--danger);">
+                        ${subtotal > 0 ? '₱' + subtotal.toLocaleString() : '—'}
+                    </td>`;
+        }).join('')}
+            </tr>
+        `;
+    });
+
+    // Grand total row
+    html += `
+        <tr>
+            <td style="padding:10px 14px; font-weight:800; background:#fef2f2; position:sticky; left:0;">
+                TOTAL
+            </td>
+            ${monthTotals.map(total => `
+                <td style="text-align:right; padding:10px 12px; font-weight:800; background:#fef2f2; color:var(--danger);">
+                    ${total > 0 ? '₱' + total.toLocaleString() : '—'}
+                </td>
+            `).join('')}
+        </tr>
+    `;
+
+    html += `</tbody></table></div>`;
+    return html;
+}
+
+function renderMonthlyScheduleSection() {
+    const container = document.getElementById('loanScheduleContainer');
+    if (!container) return;
+    container.innerHTML = renderMonthlyScheduleTable();
+}
+
+function toggleMonthlySchedule() {
+    const wrap = document.getElementById('loanScheduleWrap');
+    const btn = document.getElementById('loanScheduleToggleBtn');
+    if (!wrap) return;
+    const isHidden = wrap.style.display === 'none';
+    wrap.style.display = isHidden ? 'block' : 'none';
+    if (btn) btn.innerText = isHidden ? 'Hide monthly schedule' : 'Show monthly schedule';
+    if (isHidden) renderMonthlyScheduleSection();
 }
