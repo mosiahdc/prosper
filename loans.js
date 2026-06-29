@@ -462,7 +462,20 @@ function renderMonthlyScheduleTable() {
         return `<p style="color:var(--success); font-size:0.9rem; padding:1rem 0; font-weight:600;">✅ All loans are paid off!</p>`;
     }
 
-    const months = getScheduleMonthRange(summaries);
+    const allMonths = getScheduleMonthRange(summaries);
+
+    // Hide month columns where every loan is either not scheduled (—) or
+    // already fully paid (✓) for that month — i.e. the column has nothing owed.
+    const months = allMonths.filter(mk =>
+        summaries.some(loan => {
+            const amt = getLoanAmountForMonth(loan, mk);
+            return amt !== null && amt > 0;
+        })
+    );
+
+    if (!months.length) {
+        return `<p style="color:var(--success); font-size:0.9rem; padding:1rem 0; font-weight:600;">✅ All loans are paid off!</p>`;
+    }
 
     // Group loans by person
     const groups = {};
@@ -480,15 +493,15 @@ function renderMonthlyScheduleTable() {
     const yearLabel = months.length ? months[0].split('-')[0] : new Date().getFullYear();
 
     let html = `
-        <div style="overflow-x:auto; border:1px solid var(--border); border-radius:12px;">
-        <table style="border-collapse:collapse; width:100%; min-width:${600 + months.length * 110}px; font-size:0.8rem;">
+        <div style="overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border); border-radius:12px; max-width:100%;">
+        <table style="border-collapse:collapse; table-layout:fixed; width:max-content; min-width:${600 + months.length * 110}px; font-size:0.8rem;">
             <thead>
                 <tr>
-                    <th style="background:#7c4a1e; color:white; padding:10px 14px; text-align:left; min-width:160px; position:sticky; left:0; z-index:2;">
+                    <th style="background:#7c4a1e; color:white; padding:10px 14px; text-align:left; min-width:160px; width:160px; position:sticky; left:0; z-index:2;">
                         ${yearLabel}
                     </th>
                     ${months.map(mk => `
-                        <th style="background:#7c4a1e; color:white; padding:10px 8px; text-align:center; min-width:100px;">
+                        <th style="background:#7c4a1e; color:white; padding:10px 8px; text-align:center; min-width:100px; width:100px;">
                             ${monthKeyToLabel(mk)}
                         </th>
                     `).join('')}
@@ -501,28 +514,28 @@ function renderMonthlyScheduleTable() {
         const rows = groups[person];
         html += `
             <tr>
-                <td style="font-weight:800; font-size:0.95rem; padding:10px 14px; background:var(--bg); border-top:2px solid var(--border); position:sticky; left:0;">
+                <td style="font-weight:800; font-size:0.95rem; padding:10px 14px; background:var(--bg); border-top:2px solid var(--border); position:sticky; left:0; width:160px;">
                     ${person}
                 </td>
-                ${months.map(() => `<td style="background:var(--bg); border-top:2px solid var(--border);"></td>`).join('')}
+                ${months.map(() => `<td style="background:var(--bg); border-top:2px solid var(--border); width:100px;"></td>`).join('')}
             </tr>
         `;
 
         rows.forEach(({ loan, label }) => {
             html += `
                 <tr>
-                    <td style="padding:8px 14px 8px 24px; font-weight:600; border-bottom:1px solid var(--border); position:sticky; left:0; background:var(--card);">
+                    <td style="padding:8px 14px 8px 24px; font-weight:600; border-bottom:1px solid var(--border); position:sticky; left:0; background:var(--card); width:160px;">
                         ${label}
                     </td>
                     ${months.map(mk => {
                 const amt = getLoanAmountForMonth(loan, mk);
                 if (amt === null) {
-                    return `<td style="text-align:center; padding:8px; border-bottom:1px solid var(--border); color:var(--text-muted);">—</td>`;
+                    return `<td style="text-align:center; padding:8px; border-bottom:1px solid var(--border); color:var(--text-muted); width:100px;">—</td>`;
                 }
                 if (amt === 0) {
-                    return `<td style="text-align:center; padding:8px; border-bottom:1px solid var(--border); color:var(--success); font-weight:600;">✓</td>`;
+                    return `<td style="text-align:center; padding:8px; border-bottom:1px solid var(--border); color:var(--success); font-weight:600; width:100px;">✓</td>`;
                 }
-                return `<td style="text-align:right; padding:8px 12px; border-bottom:1px solid var(--border); font-weight:600;">₱${amt.toLocaleString()}</td>`;
+                return `<td style="text-align:right; padding:8px 12px; border-bottom:1px solid var(--border); font-weight:600; width:100px;">₱${amt.toLocaleString()}</td>`;
             }).join('')}
                 </tr>
             `;
@@ -531,12 +544,12 @@ function renderMonthlyScheduleTable() {
         // Person subtotal row
         html += `
             <tr>
-                <td style="padding:8px 14px; font-weight:700; border-bottom:2px solid var(--border); position:sticky; left:0; background:var(--card);">
+                <td style="padding:8px 14px; font-weight:700; border-bottom:2px solid var(--border); position:sticky; left:0; background:var(--card); width:160px;">
                     Subtotal
                 </td>
                 ${months.map(mk => {
             const subtotal = rows.reduce((s, { loan }) => s + (getLoanAmountForMonth(loan, mk) || 0), 0);
-            return `<td style="text-align:right; padding:8px 12px; border-bottom:2px solid var(--border); font-weight:700; color:var(--danger);">
+            return `<td style="text-align:right; padding:8px 12px; border-bottom:2px solid var(--border); font-weight:700; color:var(--danger); width:100px;">
                         ${subtotal > 0 ? '₱' + subtotal.toLocaleString() : '—'}
                     </td>`;
         }).join('')}
@@ -547,11 +560,11 @@ function renderMonthlyScheduleTable() {
     // Grand total row
     html += `
         <tr>
-            <td style="padding:10px 14px; font-weight:800; background:#fef2f2; position:sticky; left:0;">
+            <td style="padding:10px 14px; font-weight:800; background:#fef2f2; position:sticky; left:0; width:160px;">
                 TOTAL
             </td>
             ${monthTotals.map(total => `
-                <td style="text-align:right; padding:10px 12px; font-weight:800; background:#fef2f2; color:var(--danger);">
+                <td style="text-align:right; padding:10px 12px; font-weight:800; background:#fef2f2; color:var(--danger); width:100px;">
                     ${total > 0 ? '₱' + total.toLocaleString() : '—'}
                 </td>
             `).join('')}
