@@ -230,6 +230,16 @@ function renderLoanCard(loan) {
     const deadlineColor = (!loan.isFullyPaid && t.endDate && t.endDate < new Date().toISOString().split('T')[0])
         ? 'var(--danger)' : 'var(--text-muted)';
 
+    // Day of month the installment is due (e.g. "14" for the 14th of every month).
+    // For one-time loans this is just the due date's day.
+    const dueDay = t.date ? parseInt(t.date.slice(8, 10), 10) : null;
+    const dueDayBadge = dueDay
+        ? `<span style="background:#fef3c7; color:#92400e; font-size:0.75rem; font-weight:800;
+                        padding:2px 8px; border-radius:6px; min-width:22px; text-align:center; flex-shrink:0;">
+               ${dueDay}
+           </span>`
+        : '';
+
     const histId = `lh_${sanitizeId(loan.displayName + '_' + t.id)}`;
 
     return `
@@ -242,17 +252,21 @@ function renderLoanCard(loan) {
             <!-- Main row: list-style, all key info horizontally -->
             <div style="display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;">
 
-                <!-- Name + deadline (fixed-ish width) -->
-                <div style="min-width:160px; flex: 1 1 160px;">
-                    <div style="font-size:0.95rem; font-weight:800; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                        🏦 ${loan.displayName}
-                        ${loan.isFullyPaid ? '<span style="font-size:0.62rem; color:var(--success); background:#f0fdf4; padding:2px 7px; border-radius:99px;">PAID OFF</span>' : ''}
-                        ${overdueTag}
-                    </div>
-                    <div style="font-size:0.7rem; color:${deadlineColor}; margin-top:2px; font-weight:${deadlineColor === 'var(--danger)' ? 700 : 400};">
-                        📅 Deadline: ${deadlineLabel}
+                <!-- Due day + Name + deadline (fixed-ish width) -->
+                <div style="min-width:160px; flex: 1 1 160px; display:flex; align-items:flex-start; gap:8px;">
+                    ${dueDayBadge}
+                    <div>
+                        <div style="font-size:0.95rem; font-weight:800; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            🏦 ${loan.displayName}
+                            ${loan.isFullyPaid ? '<span style="font-size:0.62rem; color:var(--success); background:#f0fdf4; padding:2px 7px; border-radius:99px;">PAID OFF</span>' : ''}
+                            ${overdueTag}
+                        </div>
+                        <div style="font-size:0.7rem; color:${deadlineColor}; margin-top:2px; font-weight:${deadlineColor === 'var(--danger)' ? 700 : 400};">
+                            📅 Deadline: ${deadlineLabel}
+                        </div>
                     </div>
                 </div>
+
 
                 <!-- Per installment -->
                 <div style="min-width:90px;">
@@ -522,10 +536,15 @@ function renderMonthlyScheduleTable() {
         `;
 
         rows.forEach(({ loan, label }) => {
+            const dueDay = loan.transaction.date ? parseInt(loan.transaction.date.slice(8, 10), 10) : null;
+            const dueDayBadge = dueDay
+                ? `<span style="background:#fef3c7; color:#92400e; font-size:0.7rem; font-weight:800;
+                                padding:1px 6px; border-radius:5px; margin-right:6px;">${dueDay}</span>`
+                : '';
             html += `
                 <tr>
-                    <td style="padding:8px 14px 8px 24px; font-weight:600; border-bottom:1px solid var(--border); position:sticky; left:0; background:var(--card); width:160px;">
-                        ${label}
+                    <td style="padding:8px 14px 8px 24px; font-weight:600; border-bottom:1px solid var(--border); position:sticky; left:0; background:var(--card); width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        ${dueDayBadge}${label}
                     </td>
                     ${months.map(mk => {
                 const amt = getLoanAmountForMonth(loan, mk);
